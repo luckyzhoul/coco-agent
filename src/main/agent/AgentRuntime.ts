@@ -68,7 +68,6 @@ export class AgentRuntime {
 
     const { session } = await createAgentSession({
       cwd: workspacePath,
-      tools: ['read', 'write', 'edit', 'bash', 'ls', 'find', 'grep'],
       customTools: codingTools,
       sessionManager: SessionManager.inMemory(),
       settingsManager
@@ -111,7 +110,6 @@ export class AgentRuntime {
 
     const { session } = await createAgentSession({
       cwd: meta.workspacePath,
-      tools: ['read', 'write', 'edit', 'bash', 'ls', 'find', 'grep'],
       customTools: codingTools,
       sessionManager: SessionManager.inMemory(),
       settingsManager
