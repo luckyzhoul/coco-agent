@@ -28,6 +28,11 @@ function createWindow(): void {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 
+  // Pass window reference to agent runtime for event emission
+  import('./agent/AgentRuntime').then(({ agentRuntime }) => {
+    agentRuntime.setMainWindow(mainWindow);
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
