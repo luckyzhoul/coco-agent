@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+out/
+dist/
+build/
+
+# Electron
+release/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Env
+.env
+.env.local
+
+# Agent data
+.cocoagent/
+sessions/
