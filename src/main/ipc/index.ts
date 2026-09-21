@@ -4,6 +4,7 @@ import { workspaceManager } from '../workspace/WorkspaceManager';
 import { agentRuntime } from '../agent/AgentRuntime';
 import { settingsManager } from '../settings/SettingsManager';
 import { modelManager } from '../models/ModelManager';
+import { mcpManager } from '../mcp/McpManager';
 import {
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
@@ -25,9 +26,18 @@ import {
   MODELS_DELETE,
   MODELS_SET_ACTIVE,
   MODELS_GET_ACTIVE,
-  MODELS_TEST
+  MODELS_TEST,
+  MCP_LIST,
+  MCP_ADD,
+  MCP_UPDATE,
+  MCP_DELETE,
+  MCP_START,
+  MCP_STOP,
+  MCP_RESTART,
+  MCP_GET_STATUS,
+  MCP_LIST_TOOLS
 } from '../../shared/ipc-channels';
-import type { AppSettings, ModelConfig } from '../../shared/types';
+import type { AppSettings, ModelConfig, MCPConfig } from '../../shared/types';
 
 export function registerIpcHandlers(
   ipcMain: IpcMain,
@@ -122,5 +132,44 @@ export function registerIpcHandlers(
 
   ipcMain.handle(MODELS_TEST, (_e, id: string) => {
     return modelManager.testConnection(id);
+  });
+
+  // MCP handlers
+  ipcMain.handle(MCP_LIST, () => {
+    return mcpManager.list();
+  });
+
+  ipcMain.handle(MCP_ADD, (_e, config: Omit<MCPConfig, 'id'>) => {
+    return mcpManager.add(config);
+  });
+
+  ipcMain.handle(MCP_UPDATE, (_e, id: string, updates: Partial<MCPConfig>) => {
+    return mcpManager.update(id, updates);
+  });
+
+  ipcMain.handle(MCP_DELETE, (_e, id: string) => {
+    return mcpManager.remove(id);
+  });
+
+  ipcMain.handle(MCP_START, async (_e, id: string) => {
+    mcpManager.setMainWindow(getMainWindow());
+    await mcpManager.start(id);
+  });
+
+  ipcMain.handle(MCP_STOP, async (_e, id: string) => {
+    await mcpManager.stop(id);
+  });
+
+  ipcMain.handle(MCP_RESTART, async (_e, id: string) => {
+    mcpManager.setMainWindow(getMainWindow());
+    await mcpManager.restart(id);
+  });
+
+  ipcMain.handle(MCP_GET_STATUS, (_e, id: string) => {
+    return mcpManager.getStatus(id);
+  });
+
+  ipcMain.handle(MCP_LIST_TOOLS, (_e, id: string) => {
+    return mcpManager.listTools(id);
   });
 }
