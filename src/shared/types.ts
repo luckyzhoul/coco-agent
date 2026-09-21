@@ -84,3 +84,13 @@ export interface AppSettings {
   autoApproveTools: boolean;
   defaultThinkingLevel: string;
 }
+
+export interface ToolApprovalRequest {
+  id: string;
+  toolName: string;
+  toolInput: Record<string, unknown>;
+  description: string;
+  isDangerous: boolean;
+}
+
+export type ToolApprovalDecision = 'approve' | 'deny' | 'approve_all';

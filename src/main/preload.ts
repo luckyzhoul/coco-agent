@@ -48,8 +48,15 @@ import {
   MCP_EVENT_STATUS_CHANGED,
   SKILLS_LIST,
   SKILLS_GET_DETAIL,
-  SKILLS_RELOAD
+  SKILLS_RELOAD,
+  TOOL_APPROVAL_REQUEST,
+  TOOL_APPROVAL_RESPONSE,
+  TOOL_APPROVAL_SET_AUTO
 } from '../shared/ipc-channels';
+import type {
+  ToolApprovalRequest,
+  ToolApprovalDecision
+} from '../shared/types';
 
 const electronAPI = {
   agent: {
@@ -150,7 +157,18 @@ const electronAPI = {
         callback(data as { id: string; running: boolean; error?: string });
       ipcRenderer.on(MCP_EVENT_STATUS_CHANGED, listener);
       return () => ipcRenderer.removeListener(MCP_EVENT_STATUS_CHANGED, listener);
+    },
+    toolApprovalRequest: (callback: (request: ToolApprovalRequest) => void) => {
+      const listener = (_: unknown, request: ToolApprovalRequest) => callback(request);
+      ipcRenderer.on(TOOL_APPROVAL_REQUEST, listener);
+      return () => ipcRenderer.removeListener(TOOL_APPROVAL_REQUEST, listener);
     }
+  },
+  toolApproval: {
+    respond: (id: string, decision: ToolApprovalDecision) =>
+      ipcRenderer.invoke(TOOL_APPROVAL_RESPONSE, id, decision),
+    setAutoApprove: (enabled: boolean) =>
+      ipcRenderer.invoke(TOOL_APPROVAL_SET_AUTO, enabled)
   }
 };
 

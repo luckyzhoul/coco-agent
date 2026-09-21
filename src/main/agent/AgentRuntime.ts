@@ -11,6 +11,7 @@ import { modelManager } from '../models/ModelManager';
 import { mcpManager } from '../mcp/McpManager';
 import { buildMcpTools } from '../mcp/McpToolBridge';
 import { memoryService } from '../memory/MemoryService';
+import { approvalManager } from '../approval/ApprovalManager';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import {
   AGENT_EVENT_MESSAGE,
@@ -42,6 +43,7 @@ export class AgentRuntime {
 
   setMainWindow(window: BrowserWindow | null): void {
     this.mainWindow = window;
+    approvalManager.setMainWindow(window);
   }
 
   private emit(channel: string, data: unknown): void {
@@ -81,7 +83,7 @@ export class AgentRuntime {
 
         if (server) {
           const mcpTools = server.getTools();
-          const piTools = buildMcpTools(server, config.id, mcpTools);
+          const piTools = buildMcpTools(server, config.id, mcpTools, approvalManager);
           tools.push(...piTools);
         }
       } catch (err) {

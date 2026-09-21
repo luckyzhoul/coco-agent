@@ -6,6 +6,7 @@ import { settingsManager } from '../settings/SettingsManager';
 import { modelManager } from '../models/ModelManager';
 import { mcpManager } from '../mcp/McpManager';
 import { skillManager } from '../skills/SkillManager';
+import { approvalManager } from '../approval/ApprovalManager';
 import {
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
@@ -39,9 +40,11 @@ import {
   MCP_LIST_TOOLS,
   SKILLS_LIST,
   SKILLS_GET_DETAIL,
-  SKILLS_RELOAD
+  SKILLS_RELOAD,
+  TOOL_APPROVAL_RESPONSE,
+  TOOL_APPROVAL_SET_AUTO
 } from '../../shared/ipc-channels';
-import type { AppSettings, ModelConfig, MCPConfig } from '../../shared/types';
+import type { AppSettings, ModelConfig, MCPConfig, ToolApprovalDecision } from '../../shared/types';
 
 export function registerIpcHandlers(
   ipcMain: IpcMain,
@@ -102,7 +105,11 @@ export function registerIpcHandlers(
   });
 
   ipcMain.handle(SETTINGS_SET, (_e, partial: Partial<AppSettings>) => {
-    return settingsManager.set(partial);
+    const updated = settingsManager.set(partial);
+    if (typeof partial.autoApproveTools === 'boolean') {
+      approvalManager.setAutoApproveAll(partial.autoApproveTools);
+    }
+    return updated;
   });
 
   ipcMain.handle(SETTINGS_RESET, () => {
@@ -189,4 +196,12 @@ export function registerIpcHandlers(
   ipcMain.handle(SKILLS_RELOAD, () => {
     return skillManager.reload();
   });
+
+  // Tool approval handlers
+  ipcMain.handle(TOOL_APPROVAL_SET_AUTO, (_e, enabled: boolean) => {
+    approvalManager.setAutoApproveAll(enabled);
+  });
+
+  // Initialize approval manager from persisted settings
+  approvalManager.setAutoApproveAll(settingsManager.get().autoApproveTools);
 }

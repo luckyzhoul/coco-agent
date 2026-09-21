@@ -2,6 +2,7 @@ import { Type } from '@sinclair/typebox';
 import { defineTool } from '@earendil-works/pi-coding-agent';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import { McpServer } from './McpServer';
+import type { ApprovalManager } from '../approval/ApprovalManager';
 
 interface McpToolInfo {
   name: string;
@@ -18,7 +19,8 @@ interface McpToolInfo {
 export function buildMcpTools(
   server: McpServer,
   serverId: string,
-  tools: McpToolInfo[]
+  tools: McpToolInfo[],
+  approvalManager?: ApprovalManager
 ): ToolDefinition[] {
   return tools.map((tool) => {
     const toolName = `mcp__${serverId}__${tool.name}`;
@@ -29,12 +31,35 @@ export function buildMcpTools(
       description: tool.description || `MCP tool from ${server.config.name}`,
       parameters: Type.Object({}, { additionalProperties: true }),
       async execute(toolCallId, params, signal) {
+        const inputParams = params as Record<string, unknown>;
+
+        // Check if approval is required
+        if (approvalManager) {
+          const approved = await approvalManager.requireApproval(
+            toolName,
+            inputParams,
+            `MCP tool: ${tool.name} (${server.config.name})`
+          );
+          if (!approved) {
+            return {
+              content: [{ type: 'text', text: 'Tool call denied by user.' }],
+              details: {
+                server: server.config.name,
+                tool: tool.name,
+                isError: true,
+                denied: true,
+                rawResult: null
+              }
+            };
+          }
+        }
+
         let contentText: string;
         let isError = false;
         let rawResult: unknown = null;
 
         try {
-          rawResult = await server.callTool(tool.name, params as Record<string, unknown>, signal);
+          rawResult = await server.callTool(tool.name, inputParams, signal);
           contentText = formatMcpResult(rawResult);
         } catch (err) {
           isError = true;
@@ -47,6 +72,7 @@ export function buildMcpTools(
             server: server.config.name,
             tool: tool.name,
             isError,
+            denied: false,
             rawResult
           }
         };
