@@ -2,9 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useIpcRenderer } from '../../hooks/useIpcRenderer';
 import { useSessionStore } from '../../stores/useSessionStore';
 import { useChatStore } from '../../stores/useChatStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
 import type { SessionInfo } from '@shared/types';
 
-export function Sidebar() {
+interface SidebarProps {
+  onOpenSettings: () => void;
+}
+
+export function Sidebar({ onOpenSettings }: SidebarProps) {
   const ipc = useIpcRenderer();
   const sessions = useSessionStore((s) => s.sessions);
   const currentWorkspace = useSessionStore((s) => s.currentWorkspace);
@@ -14,14 +19,22 @@ export function Sidebar() {
   const activeSessionId = useChatStore((s) => s.activeSessionId);
   const setActiveSession = useChatStore((s) => s.setActiveSession);
   const setMessages = useChatStore((s) => s.setMessages);
+  const mcpServers = useSettingsStore((s) => s.mcpServers);
+  const skills = useSettingsStore((s) => s.skills);
+  const loadMcpServers = useSettingsStore((s) => s.loadMcpServers);
+  const loadSkills = useSettingsStore((s) => s.loadSkills);
 
   const [isCreating, setIsCreating] = useState(false);
+  const [showMcpSection, setShowMcpSection] = useState(true);
+  const [showSkillsSection, setShowSkillsSection] = useState(true);
 
   useEffect(() => {
     ipc.agent.listSessions().then((s) => setSessions(s));
     ipc.workspace.getCurrent().then((ws) => setCurrentWorkspace(ws));
     ipc.workspace.listRecent().then((ws) => setRecentWorkspaces(ws));
-  }, [ipc, setSessions, setCurrentWorkspace, setRecentWorkspaces]);
+    loadMcpServers();
+    loadSkills();
+  }, [ipc, setSessions, setCurrentWorkspace, setRecentWorkspaces, loadMcpServers, loadSkills]);
 
   const handleNewSession = async () => {
     let workspace = currentWorkspace;
@@ -77,6 +90,8 @@ export function Sidebar() {
     return date.toLocaleDateString();
   };
 
+  const runningMcpCount = mcpServers.filter(s => s.enabled).length;
+
   return (
     <div className="flex h-full w-64 flex-col border-r border-border bg-card">
       {/* Workspace selector */}
@@ -105,35 +120,129 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Session list */}
-      <div className="flex-1 overflow-y-auto px-2 pb-3">
-        <div className="mb-2 px-2 text-xs font-medium text-muted-foreground">
-          Sessions
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Session list */}
+        <div className="px-2 pb-3">
+          <div className="mb-2 px-2 text-xs font-medium text-muted-foreground">
+            Sessions
+          </div>
+          <div className="space-y-1">
+            {sessions.length === 0 ? (
+              <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                No sessions yet
+              </div>
+            ) : (
+              sessions.map((session) => (
+                <button
+                  key={session.id}
+                  onClick={() => handleSwitchSession(session)}
+                  className={`w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+                    session.id === activeSessionId
+                      ? 'bg-accent text-foreground'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                  }`}
+                >
+                  <div className="truncate font-medium">{session.title}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {formatTime(session.updatedAt)} · {session.messageCount} msgs
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
         </div>
-        <div className="space-y-1">
-          {sessions.length === 0 ? (
-            <div className="px-2 py-4 text-center text-xs text-muted-foreground">
-              No sessions yet
-            </div>
-          ) : (
-            sessions.map((session) => (
-              <button
-                key={session.id}
-                onClick={() => handleSwitchSession(session)}
-                className={`w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
-                  session.id === activeSessionId
-                    ? 'bg-accent text-foreground'
-                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-                }`}
-              >
-                <div className="truncate font-medium">{session.title}</div>
-                <div className="truncate text-xs text-muted-foreground">
-                  {formatTime(session.updatedAt)} · {session.messageCount} msgs
+
+        {/* MCP section */}
+        <div className="px-2 pb-3 border-t border-border pt-3">
+          <button
+            onClick={() => setShowMcpSection(!showMcpSection)}
+            className="flex w-full items-center gap-2 mb-2 px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <span>{showMcpSection ? '▼' : '▶'}</span>
+            <span>🔌 MCP</span>
+            <span className="ml-auto text-xs">
+              {runningMcpCount}/{mcpServers.length} running
+            </span>
+          </button>
+
+          {showMcpSection && (
+            <div className="space-y-1">
+              {mcpServers.length === 0 ? (
+                <div className="px-2 py-2 text-center text-xs text-muted-foreground/60">
+                  No MCP servers
                 </div>
-              </button>
-            ))
+              ) : (
+                mcpServers.slice(0, 5).map((server) => (
+                  <div
+                    key={server.id}
+                    className="flex items-center gap-2 px-2 py-1 text-xs"
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full ${
+                      server.enabled ? 'bg-green-400' : 'bg-muted'
+                    }`} />
+                    <span className="truncate text-muted-foreground">
+                      {server.name}
+                    </span>
+                  </div>
+                ))
+              )}
+              {mcpServers.length > 5 && (
+                <div className="px-2 py-1 text-xs text-muted-foreground/60">
+                  +{mcpServers.length - 5} more
+                </div>
+              )}
+            </div>
           )}
         </div>
+
+        {/* Skills section */}
+        <div className="px-2 pb-3 border-t border-border pt-3">
+          <button
+            onClick={() => setShowSkillsSection(!showSkillsSection)}
+            className="flex w-full items-center gap-2 mb-2 px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <span>{showSkillsSection ? '▼' : '▶'}</span>
+            <span>🧩 Skills</span>
+            <span className="ml-auto text-xs">{skills.length} loaded</span>
+          </button>
+
+          {showSkillsSection && (
+            <div className="space-y-1">
+              {skills.length === 0 ? (
+                <div className="px-2 py-2 text-center text-xs text-muted-foreground/60">
+                  No skills found
+                </div>
+              ) : (
+                skills.slice(0, 5).map((skill) => (
+                  <div
+                    key={skill.name}
+                    className="px-2 py-1 text-xs text-muted-foreground truncate"
+                    title={skill.description}
+                  >
+                    {skill.name}
+                  </div>
+                ))
+              )}
+              {skills.length > 5 && (
+                <div className="px-2 py-1 text-xs text-muted-foreground/60">
+                  +{skills.length - 5} more
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer: Settings button */}
+      <div className="border-t border-border p-2">
+        <button
+          onClick={onOpenSettings}
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+        >
+          <span>⚙️</span>
+          <span>Settings</span>
+        </button>
       </div>
     </div>
   );

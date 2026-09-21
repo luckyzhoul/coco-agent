@@ -1,17 +1,17 @@
-import React from 'react';
 import { Titlebar } from './Titlebar';
 import { Sidebar } from './Sidebar';
 
 interface AppLayoutProps {
   children: React.ReactNode;
+  onOpenSettings: () => void;
 }
 
-export function AppLayout({ children }: AppLayoutProps) {
+export function AppLayout({ children, onOpenSettings }: AppLayoutProps) {
   return (
     <div className="flex h-full flex-col">
       <Titlebar />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
+        <Sidebar onOpenSettings={onOpenSettings} />
         <main className="flex-1 overflow-hidden">{children}</main>
       </div>
     </div>
