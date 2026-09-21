@@ -23,6 +23,7 @@ linux:
   target:
     - AppImage
     - deb
+  syncDesktopName: true
   category: Development
   icon: resources/icon.png
   maintainer: CocoAgent
