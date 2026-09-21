@@ -1,0 +1,48 @@
+appId: com.cocoagent.desktop
+productName: CocoAgent
+copyright: Copyright © 2026 CocoAgent
+
+directories:
+  app: .
+  output: release
+  buildResources: resources
+
+# The main process is fully bundled by electron-vite (externalizeDeps: false)
+# and the renderer/preload bundles are self-contained, so runtime node_modules
+# are not needed inside the package.
+files:
+  - out/**/*
+  - resources/**/*
+  - package.json
+  - '!node_modules/**/*'
+
+asarUnpack:
+  - resources/**
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
+  icon: resources/icon.png
+  maintainer: CocoAgent
+  description: Local desktop AI agent with MCP, Skills, and Browser/Computer Use
+
+win:
+  target:
+    - nsis
+  icon: resources/icon.png
+
+mac:
+  target:
+    - dmg
+  category: public.app-category.developer-tools
+  icon: resources/icon.png
+  # Screen capture / input control need explicit entitlements on macOS
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true

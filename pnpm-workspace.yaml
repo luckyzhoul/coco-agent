@@ -1,7 +1,15 @@
 packages:
   - '.'
+
+# electron-builder 26.15.3 declares "@electron/get": "^3.0.0" but its code calls
+# ElectronDownloadCacheMode, which only exists in @electron/get >= 5. Force the
+# newer version for app-builder-lib only, so other consumers keep their own range.
+overrides:
+  'app-builder-lib>@electron/get': '^5.1.0'
+
 allowBuilds:
-  '@google/genai': set this to true or false
+  '@google/genai': false
   electron: true
+  electron-winstaller: false
   esbuild: true
-  protobufjs: set this to true or false
+  protobufjs: false
