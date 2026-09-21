@@ -15,8 +15,74 @@ export class SkillManager {
     this.loadAllSkills();
   }
 
+  getSkillsDir(): string {
+    const dir = path.join(app.getPath('userData'), 'cocoagent', 'skills');
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    return dir;
+  }
+
+  /**
+   * Install a skill by copying a directory that contains a SKILL.md file
+   * into the global skills directory.
+   */
+  install(sourceDir: string): SkillInfo {
+    const skillMd = path.join(sourceDir, 'SKILL.md');
+    if (!fs.existsSync(skillMd)) {
+      throw new Error(`Not a valid skill: SKILL.md not found in ${sourceDir}`);
+    }
+
+    const content = fs.readFileSync(skillMd, 'utf-8');
+    const frontmatter = this.parseFrontmatter(content);
+    const name = frontmatter.name || path.basename(sourceDir);
+
+    const destDir = path.join(this.getSkillsDir(), name);
+    if (fs.existsSync(destDir)) {
+      fs.rmSync(destDir, { recursive: true, force: true });
+    }
+
+    this.copyDir(sourceDir, destDir);
+    this.reload();
+
+    const installed = this.skills.find((s) => s.name === name);
+    if (!installed) {
+      throw new Error(`Skill installed but could not be loaded: ${name}`);
+    }
+    return installed;
+  }
+
+  uninstall(name: string): void {
+    const skill = this.skills.find((s) => s.name === name);
+    if (!skill) {
+      throw new Error(`Skill not found: ${name}`);
+    }
+    if (skill.source !== 'global') {
+      throw new Error(`Only globally installed skills can be removed: ${name}`);
+    }
+    fs.rmSync(skill.path, { recursive: true, force: true });
+    this.reload();
+  }
+
+  private copyDir(src: string, dest: string): void {
+    fs.mkdirSync(dest, { recursive: true });
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+      if (entry.isDirectory()) {
+        this.copyDir(srcPath, destPath);
+      } else if (entry.isFile()) {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  }
+
   list(): SkillInfo[] {
     return [...this.skills];
+  }
+
+  getContent(name: string): string | null {
+    return this.getSkillContent(name);
   }
 
   getDetail(name: string): SkillInfo | null {

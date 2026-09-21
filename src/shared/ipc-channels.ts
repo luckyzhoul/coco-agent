@@ -53,6 +53,10 @@ export const MCP_EVENT_STATUS_CHANGED = 'mcp:event:statusChanged';
 export const SKILLS_LIST = 'skills:list';
 export const SKILLS_GET_DETAIL = 'skills:getDetail';
 export const SKILLS_RELOAD = 'skills:reload';
+export const SKILLS_INSTALL = 'skills:install';
+export const SKILLS_UNINSTALL = 'skills:uninstall';
+export const SKILLS_GET_CONTENT = 'skills:getContent';
+export const SKILLS_OPEN_DIR = 'skills:openDir';
 
 // Tool approval channels
 export const TOOL_APPROVAL_REQUEST = 'tool:approvalRequest';

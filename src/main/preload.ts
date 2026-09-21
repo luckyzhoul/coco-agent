@@ -50,6 +50,10 @@ import {
   SKILLS_LIST,
   SKILLS_GET_DETAIL,
   SKILLS_RELOAD,
+  SKILLS_INSTALL,
+  SKILLS_UNINSTALL,
+  SKILLS_GET_CONTENT,
+  SKILLS_OPEN_DIR,
   TOOL_APPROVAL_REQUEST,
   TOOL_APPROVAL_RESPONSE,
   TOOL_APPROVAL_SET_AUTO,
@@ -131,7 +135,16 @@ const electronAPI = {
     list: () => ipcRenderer.invoke(SKILLS_LIST) as Promise<SkillInfo[]>,
     getDetail: (name: string) =>
       ipcRenderer.invoke(SKILLS_GET_DETAIL, name) as Promise<SkillInfo | null>,
-    reload: () => ipcRenderer.invoke(SKILLS_RELOAD) as Promise<SkillInfo[]>
+    reload: () => ipcRenderer.invoke(SKILLS_RELOAD) as Promise<SkillInfo[]>,
+    getContent: (name: string) =>
+      ipcRenderer.invoke(SKILLS_GET_CONTENT, name) as Promise<string | null>,
+    openDir: () => ipcRenderer.invoke(SKILLS_OPEN_DIR) as Promise<string>,
+    install: () =>
+      ipcRenderer.invoke(SKILLS_INSTALL) as Promise<
+        { installed: SkillInfo; skills: SkillInfo[] } | null
+      >,
+    uninstall: (name: string) =>
+      ipcRenderer.invoke(SKILLS_UNINSTALL, name) as Promise<SkillInfo[]>
   },
   on: {
     agentMessage: (callback: (msg: Message) => void) => {

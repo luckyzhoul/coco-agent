@@ -1,5 +1,6 @@
 import type { IpcMain } from 'electron';
 import type { BrowserWindow } from 'electron';
+import { dialog, shell } from 'electron';
 import { workspaceManager } from '../workspace/WorkspaceManager';
 import { agentRuntime } from '../agent/AgentRuntime';
 import { settingsManager } from '../settings/SettingsManager';
@@ -44,6 +45,10 @@ import {
   SKILLS_LIST,
   SKILLS_GET_DETAIL,
   SKILLS_RELOAD,
+  SKILLS_INSTALL,
+  SKILLS_UNINSTALL,
+  SKILLS_GET_CONTENT,
+  SKILLS_OPEN_DIR,
   TOOL_APPROVAL_RESPONSE,
   TOOL_APPROVAL_SET_AUTO,
   BROWSER_GET_STATUS,
@@ -206,6 +211,34 @@ export function registerIpcHandlers(
 
   ipcMain.handle(SKILLS_RELOAD, () => {
     return skillManager.reload();
+  });
+
+  ipcMain.handle(SKILLS_GET_CONTENT, (_e, name: string) => {
+    return skillManager.getContent(name);
+  });
+
+  ipcMain.handle(SKILLS_OPEN_DIR, async () => {
+    const dir = skillManager.getSkillsDir();
+    await shell.openPath(dir);
+    return dir;
+  });
+
+  ipcMain.handle(SKILLS_INSTALL, async () => {
+    const win = getMainWindow();
+    const result = await dialog.showOpenDialog(win!, {
+      title: 'Select a skill folder (must contain SKILL.md)',
+      properties: ['openDirectory']
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+    const installed = skillManager.install(result.filePaths[0]);
+    return { installed, skills: skillManager.list() };
+  });
+
+  ipcMain.handle(SKILLS_UNINSTALL, (_e, name: string) => {
+    skillManager.uninstall(name);
+    return skillManager.list();
   });
 
   // Tool approval handlers
