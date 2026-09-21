@@ -7,6 +7,7 @@ import { settingsManager } from '../settings/SettingsManager';
 import { modelManager } from '../models/ModelManager';
 import { mcpManager } from '../mcp/McpManager';
 import { skillManager } from '../skills/SkillManager';
+import { skillInstaller } from '../skills/SkillInstaller';
 import { approvalManager } from '../approval/ApprovalManager';
 import { browserService } from '../browser/BrowserService';
 import { computerService } from '../computer/ComputerService';
@@ -49,6 +50,9 @@ import {
   SKILLS_UNINSTALL,
   SKILLS_GET_CONTENT,
   SKILLS_OPEN_DIR,
+  SKILLS_INSTALL_FROM_SOURCE,
+  SKILLS_FETCH_CATALOG,
+  SKILLS_INSTALL_FROM_CATALOG,
   TOOL_APPROVAL_RESPONSE,
   TOOL_APPROVAL_SET_AUTO,
   BROWSER_GET_STATUS,
@@ -239,6 +243,20 @@ export function registerIpcHandlers(
   ipcMain.handle(SKILLS_UNINSTALL, (_e, name: string) => {
     skillManager.uninstall(name);
     return skillManager.list();
+  });
+
+  ipcMain.handle(SKILLS_INSTALL_FROM_SOURCE, async (_e, source: string) => {
+    const installed = await skillInstaller.installFromSource(source);
+    return { installed, skills: skillManager.list() };
+  });
+
+  ipcMain.handle(SKILLS_FETCH_CATALOG, async (_e, registryUrl: string) => {
+    return skillInstaller.fetchCatalog(registryUrl);
+  });
+
+  ipcMain.handle(SKILLS_INSTALL_FROM_CATALOG, async (_e, source: string) => {
+    const installed = await skillInstaller.installFromSource(source);
+    return { installed, skills: skillManager.list() };
   });
 
   // Tool approval handlers

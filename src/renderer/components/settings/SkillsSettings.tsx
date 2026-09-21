@@ -1,12 +1,99 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import type { SkillInfo } from '@shared/types';
+
+interface CatalogEntry {
+  name: string;
+  description: string;
+  source: string;
+  version?: string;
+  author?: string;
+}
+
+type Tab = 'installed' | 'marketplace';
 
 export function SkillsSettings() {
   const skills = useSettingsStore((s) => s.skills);
   const loadSkills = useSettingsStore((s) => s.loadSkills);
+  const settings = useSettingsStore((s) => s.settings);
+  const loadSettings = useSettingsStore((s) => s.loadSettings);
+
+  const [tab, setTab] = useState<Tab>('installed');
   const [detail, setDetail] = useState<{ skill: SkillInfo; content: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  // Marketplace state
+  const [registryUrl, setRegistryUrl] = useState('');
+  const [catalog, setCatalog] = useState<{ name: string; skills: CatalogEntry[] } | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [sourceInput, setSourceInput] = useState('');
+
+  useEffect(() => {
+    if (settings) setRegistryUrl(settings.skillRegistryUrl || '');
+  }, [settings]);
+
+  const run = async (key: string, fn: () => Promise<void>) => {
+    setError(null);
+    setBusy(key);
+    try {
+      await fn();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleInstallFolder = () =>
+    run('folder', async () => {
+      const result = await window.electronAPI.skills.install();
+      if (result) await loadSkills();
+    });
+
+  const handleInstallSource = () =>
+    run('source', async () => {
+      if (!sourceInput.trim()) return;
+      await window.electronAPI.skills.installFromSource(sourceInput.trim());
+      setSourceInput('');
+      await loadSkills();
+    });
+
+  const handleUninstall = (name: string) =>
+    run(`uninstall:${name}`, async () => {
+      await window.electronAPI.skills.uninstall(name);
+      await loadSkills();
+    });
+
+  const handleView = async (skill: SkillInfo) => {
+    const content = await window.electronAPI.skills.getContent(skill.name);
+    setDetail({ skill, content: content || '(no content)' });
+  };
+
+  const handleOpenDir = () => window.electronAPI.skills.openDir();
+
+  const handleSaveRegistry = () =>
+    run('saveRegistry', async () => {
+      await window.electronAPI.settings.set({ skillRegistryUrl: registryUrl.trim() });
+      await loadSettings();
+    });
+
+  const handleLoadCatalog = () => {
+    setCatalogError(null);
+    setLoadingCatalog(true);
+    window.electronAPI.skills
+      .fetchCatalog(registryUrl.trim())
+      .then(setCatalog)
+      .catch((err) => setCatalogError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setLoadingCatalog(false));
+  };
+
+  const handleCatalogInstall = (entry: CatalogEntry) =>
+    run(`catalog:${entry.name}`, async () => {
+      await window.electronAPI.skills.installFromCatalog(entry.source);
+      await loadSkills();
+    });
 
   const sourceLabels: Record<string, string> = {
     'built-in': 'Built-in',
@@ -14,66 +101,32 @@ export function SkillsSettings() {
     'project': 'Project'
   };
 
-  const handleInstall = async () => {
-    setError(null);
-    try {
-      const result = await window.electronAPI.skills.install();
-      if (result) {
-        await loadSkills();
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  const handleUninstall = async (name: string) => {
-    setError(null);
-    try {
-      await window.electronAPI.skills.uninstall(name);
-      await loadSkills();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  const handleView = async (skill: SkillInfo) => {
-    const content = await window.electronAPI.skills.getContent(skill.name);
-    setDetail({ skill, content: content || '(no content)' });
-  };
-
-  const handleOpenDir = async () => {
-    await window.electronAPI.skills.openDir();
-  };
+  const installedNames = new Set(skills.map((s) => s.name));
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-base font-medium mb-1">Skills</h3>
-          <p className="text-sm text-muted-foreground">
-            Extend agent capabilities with specialized skills.
-          </p>
-        </div>
-        <div className="flex gap-2">
+      <div>
+        <h3 className="text-base font-medium mb-1">Skills</h3>
+        <p className="text-sm text-muted-foreground">
+          Extend agent capabilities with specialized skills.
+        </p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border">
+        {(['installed', 'marketplace'] as Tab[]).map((t) => (
           <button
-            onClick={handleOpenDir}
-            className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 text-sm border-b-2 -mb-px transition-colors ${
+              tab === t
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
           >
-            Open Folder
+            {t === 'installed' ? `Installed (${skills.length})` : 'Marketplace'}
           </button>
-          <button
-            onClick={loadSkills}
-            className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
-          >
-            ↻ Reload
-          </button>
-          <button
-            onClick={handleInstall}
-            className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 transition-opacity"
-          >
-            + Install Skill
-          </button>
-        </div>
+        ))}
       </div>
 
       {error && (
@@ -82,66 +135,199 @@ export function SkillsSettings() {
         </div>
       )}
 
-      {/* Skills directory hint */}
-      <div className="bg-background border border-border rounded-lg p-4">
-        <div className="text-sm font-medium mb-2">How to add skills</div>
-        <p className="text-xs text-muted-foreground mb-2">
-          Each skill is a folder containing a <code className="bg-muted px-1 rounded">SKILL.md</code> file
-          with <code className="bg-muted px-1 rounded">name</code> and{' '}
-          <code className="bg-muted px-1 rounded">description</code> frontmatter. Skills are loaded from:
-        </p>
-        <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-          <li><code className="bg-muted px-1 rounded">~/.cocoagent/skills/</code> (global — managed here)</li>
-          <li><code className="bg-muted px-1 rounded">&lt;workspace&gt;/.cocoagent/skills/</code> (project)</li>
-        </ul>
-      </div>
-
-      {/* Skills list */}
-      <div className="space-y-2">
-        <div className="text-sm font-medium">Installed Skills ({skills.length})</div>
-        {skills.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm bg-background border border-border rounded-lg">
-            No skills found. Click "Install Skill" to add one.
+      {tab === 'installed' && (
+        <>
+          <div className="flex gap-2">
+            <button
+              onClick={handleOpenDir}
+              className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
+            >
+              Open Folder
+            </button>
+            <button
+              onClick={loadSkills}
+              className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
+            >
+              ↻ Reload
+            </button>
+            <button
+              onClick={handleInstallFolder}
+              disabled={busy === 'folder'}
+              className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
+            >
+              {busy === 'folder' ? 'Installing…' : '+ Install from Folder'}
+            </button>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {skills.map((skill) => (
-              <div
-                key={skill.name}
-                className="p-3 rounded-lg border border-border bg-background"
+
+          {/* Install from source */}
+          <div className="bg-background border border-border rounded-lg p-4">
+            <div className="text-sm font-medium mb-2">Install from URL or path</div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={sourceInput}
+                onChange={(e) => setSourceInput(e.target.value)}
+                placeholder="https://github.com/user/my-skill  ·  ./local/skill  ·  skill.tar.gz"
+                className="flex-1 bg-background border border-input rounded-md px-3 py-1.5 text-sm"
+              />
+              <button
+                onClick={handleInstallSource}
+                disabled={!sourceInput.trim() || busy === 'source'}
+                className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium">{skill.name}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {skill.description || 'No description'}
+                {busy === 'source' ? 'Installing…' : 'Install'}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Supports git repositories, <code className="bg-muted px-1 rounded">.zip</code> /{' '}
+              <code className="bg-muted px-1 rounded">.tar.gz</code> archives, and local folders.
+              The archive or repo must contain a <code className="bg-muted px-1 rounded">SKILL.md</code>.
+            </p>
+          </div>
+
+          <div className="bg-background border border-border rounded-lg p-4">
+            <div className="text-sm font-medium mb-2">Skill locations</div>
+            <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+              <li><code className="bg-muted px-1 rounded">~/.cocoagent/skills/</code> (global — managed here)</li>
+              <li><code className="bg-muted px-1 rounded">&lt;workspace&gt;/.cocoagent/skills/</code> (project)</li>
+            </ul>
+          </div>
+
+          {/* Skills list */}
+          <div className="space-y-2">
+            {skills.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm bg-background border border-border rounded-lg">
+                No skills installed yet.
+              </div>
+            ) : (
+              skills.map((skill) => (
+                <div key={skill.name} className="p-3 rounded-lg border border-border bg-background">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{skill.name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {skill.description || 'No description'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                        {sourceLabels[skill.source] || skill.source}
+                      </span>
+                      <button
+                        onClick={() => handleView(skill)}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        View
+                      </button>
+                      {skill.source === 'global' && (
+                        <button
+                          onClick={() => handleUninstall(skill.name)}
+                          disabled={busy === `uninstall:${skill.name}`}
+                          className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                      {sourceLabels[skill.source] || skill.source}
-                    </span>
-                    <button
-                      onClick={() => handleView(skill)}
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      View
-                    </button>
-                    {skill.source === 'global' && (
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+
+      {tab === 'marketplace' && (
+        <>
+          {/* Registry config */}
+          <div className="bg-background border border-border rounded-lg p-4 space-y-3">
+            <div className="text-sm font-medium">Skill Registry</div>
+            <p className="text-xs text-muted-foreground">
+              Point this at a JSON catalog listing available skills. The catalog format is{' '}
+              <code className="bg-muted px-1 rounded">{'{ "skills": [{ "name", "description", "source" }] }'}</code>.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={registryUrl}
+                onChange={(e) => setRegistryUrl(e.target.value)}
+                placeholder="https://example.com/cocoagent-skills.json"
+                className="flex-1 bg-background border border-input rounded-md px-3 py-1.5 text-sm"
+              />
+              <button
+                onClick={handleSaveRegistry}
+                disabled={busy === 'saveRegistry'}
+                className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent disabled:opacity-50 transition-colors"
+              >
+                Save
+              </button>
+              <button
+                onClick={handleLoadCatalog}
+                disabled={!registryUrl.trim() || loadingCatalog}
+                className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {loadingCatalog ? 'Loading…' : 'Browse'}
+              </button>
+            </div>
+          </div>
+
+          {catalogError && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">
+              {catalogError}
+            </div>
+          )}
+
+          {!registryUrl.trim() && (
+            <div className="text-center py-8 text-muted-foreground text-sm bg-background border border-border rounded-lg">
+              Set a registry URL above to browse available skills.
+            </div>
+          )}
+
+          {catalog && (
+            <div className="space-y-2">
+              <div className="text-sm font-medium">
+                {catalog.name} — {catalog.skills.length} available
+              </div>
+              {catalog.skills.map((entry) => (
+                <div
+                  key={entry.name}
+                  className="p-3 rounded-lg border border-border bg-background"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium flex items-center gap-2">
+                        {entry.name}
+                        {entry.version && (
+                          <span className="text-xs text-muted-foreground">v{entry.version}</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {entry.description}
+                      </div>
+                      {entry.author && (
+                        <div className="text-xs text-muted-foreground/70 mt-0.5">
+                          by {entry.author}
+                        </div>
+                      )}
+                    </div>
+                    {installedNames.has(entry.name) ? (
+                      <span className="text-xs text-primary shrink-0">Installed</span>
+                    ) : (
                       <button
-                        onClick={() => handleUninstall(skill.name)}
-                        className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                        onClick={() => handleCatalogInstall(entry)}
+                        disabled={busy === `catalog:${entry.name}`}
+                        className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-xs hover:opacity-90 disabled:opacity-50 shrink-0 transition-opacity"
                       >
-                        Remove
+                        {busy === `catalog:${entry.name}` ? 'Installing…' : 'Install'}
                       </button>
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       {/* Detail modal */}
       {detail && (
@@ -150,9 +336,7 @@ export function SkillsSettings() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div>
                 <h3 className="text-base font-semibold">{detail.skill.name}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {detail.skill.path}
-                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">{detail.skill.path}</p>
               </div>
               <button
                 onClick={() => setDetail(null)}

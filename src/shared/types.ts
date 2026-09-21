@@ -85,6 +85,9 @@ export interface AppSettings {
   // Behavior
   autoApproveTools: boolean;
   defaultThinkingLevel: string;
+
+  // Skill registry (remote catalog JSON URL)
+  skillRegistryUrl: string;
 }
 
 export interface ToolApprovalRequest {

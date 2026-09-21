@@ -54,6 +54,9 @@ import {
   SKILLS_UNINSTALL,
   SKILLS_GET_CONTENT,
   SKILLS_OPEN_DIR,
+  SKILLS_INSTALL_FROM_SOURCE,
+  SKILLS_FETCH_CATALOG,
+  SKILLS_INSTALL_FROM_CATALOG,
   TOOL_APPROVAL_REQUEST,
   TOOL_APPROVAL_RESPONSE,
   TOOL_APPROVAL_SET_AUTO,
@@ -144,7 +147,28 @@ const electronAPI = {
         { installed: SkillInfo; skills: SkillInfo[] } | null
       >,
     uninstall: (name: string) =>
-      ipcRenderer.invoke(SKILLS_UNINSTALL, name) as Promise<SkillInfo[]>
+      ipcRenderer.invoke(SKILLS_UNINSTALL, name) as Promise<SkillInfo[]>,
+    installFromSource: (source: string) =>
+      ipcRenderer.invoke(SKILLS_INSTALL_FROM_SOURCE, source) as Promise<{
+        installed: SkillInfo;
+        skills: SkillInfo[];
+      }>,
+    fetchCatalog: (registryUrl: string) =>
+      ipcRenderer.invoke(SKILLS_FETCH_CATALOG, registryUrl) as Promise<{
+        name: string;
+        skills: {
+          name: string;
+          description: string;
+          source: string;
+          version?: string;
+          author?: string;
+        }[];
+      }>,
+    installFromCatalog: (source: string) =>
+      ipcRenderer.invoke(SKILLS_INSTALL_FROM_CATALOG, source) as Promise<{
+        installed: SkillInfo;
+        skills: SkillInfo[];
+      }>
   },
   on: {
     agentMessage: (callback: (msg: Message) => void) => {

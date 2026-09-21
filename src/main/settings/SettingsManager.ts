@@ -12,7 +12,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   fontSize: 14,
   autoApproveTools: false,
-  defaultThinkingLevel: 'medium'
+  defaultThinkingLevel: 'medium',
+  skillRegistryUrl: ''
 };
 
 export class SettingsManager {

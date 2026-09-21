@@ -57,6 +57,9 @@ export const SKILLS_INSTALL = 'skills:install';
 export const SKILLS_UNINSTALL = 'skills:uninstall';
 export const SKILLS_GET_CONTENT = 'skills:getContent';
 export const SKILLS_OPEN_DIR = 'skills:openDir';
+export const SKILLS_INSTALL_FROM_SOURCE = 'skills:installFromSource';
+export const SKILLS_FETCH_CATALOG = 'skills:fetchCatalog';
+export const SKILLS_INSTALL_FROM_CATALOG = 'skills:installFromCatalog';
 
 // Tool approval channels
 export const TOOL_APPROVAL_REQUEST = 'tool:approvalRequest';
