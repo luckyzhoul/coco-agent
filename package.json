@@ -15,7 +15,8 @@
     "dist:linux": "electron-vite build && electron-builder --linux",
     "dist:win": "electron-vite build && electron-builder --win",
     "dist:mac": "electron-vite build && electron-builder --mac",
-    "repair:electron": "node scripts/repair-electron.mjs"
+    "repair:electron": "node scripts/repair-electron.mjs",
+    "test": "jiti scripts/test-bm25.ts"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

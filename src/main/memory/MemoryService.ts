@@ -4,6 +4,8 @@ import { app } from 'electron';
 import { Type } from '@sinclair/typebox';
 import { defineTool } from '@earendil-works/pi-coding-agent';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
+import { Bm25Index } from './Bm25Index';
+import { embeddingClient, cosineSimilarity } from './EmbeddingClient';
 
 interface MemoryEntry {
   id: string;
@@ -14,9 +16,19 @@ interface MemoryEntry {
   updatedAt: number;
 }
 
+export interface MemorySearchHit extends MemoryEntry {
+  score: number;
+  matchType: 'bm25' | 'semantic' | 'hybrid';
+}
+
+/** Weight applied to the semantic score when blending with BM25. */
+const SEMANTIC_WEIGHT = 0.7;
+
 export class MemoryService {
   private filePath: string;
   private entries: MemoryEntry[] = [];
+  private index = new Bm25Index();
+  private embeddings = new Map<string, number[]>();
 
   constructor() {
     const dataDir = path.join(app.getPath('userData'), 'cocoagent');
@@ -25,6 +37,7 @@ export class MemoryService {
     }
     this.filePath = path.join(dataDir, 'memory.json');
     this.load();
+    this.reindex();
   }
 
   private load(): void {
@@ -46,6 +59,16 @@ export class MemoryService {
     }
   }
 
+  /** BM25 needs a flat text per document; tags are repeated to give them a mild boost. */
+  private searchableText(entry: MemoryEntry): string {
+    const tags = entry.tags.join(' ');
+    return `${entry.content} ${tags} ${tags}`;
+  }
+
+  private reindex(): void {
+    this.index.build(this.entries.map((e) => this.searchableText(e)));
+  }
+
   private generateId(): string {
     return `mem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   }
@@ -61,68 +84,107 @@ export class MemoryService {
     };
     this.entries.unshift(entry);
     this.save();
+    this.reindex();
     return entry;
   }
 
   get(id: string): MemoryEntry | undefined {
-    return this.entries.find(e => e.id === id);
+    return this.entries.find((e) => e.id === id);
   }
 
-  update(id: string, updates: Partial<Pick<MemoryEntry, 'content' | 'tags'>>): MemoryEntry | undefined {
-    const idx = this.entries.findIndex(e => e.id === id);
+  update(
+    id: string,
+    updates: Partial<Pick<MemoryEntry, 'content' | 'tags'>>
+  ): MemoryEntry | undefined {
+    const idx = this.entries.findIndex((e) => e.id === id);
     if (idx === -1) return undefined;
-    this.entries[idx] = {
-      ...this.entries[idx],
-      ...updates,
-      updatedAt: Date.now()
-    };
+    this.entries[idx] = { ...this.entries[idx], ...updates, updatedAt: Date.now() };
     this.save();
+    this.reindex();
     return this.entries[idx];
   }
 
   delete(id: string): boolean {
-    const idx = this.entries.findIndex(e => e.id === id);
+    const idx = this.entries.findIndex((e) => e.id === id);
     if (idx === -1) return false;
     this.entries.splice(idx, 1);
+    this.embeddings.delete(id);
     this.save();
+    this.reindex();
     return true;
-  }
-
-  search(query: string, limit: number = 10): MemoryEntry[] {
-    const queryLower = query.toLowerCase();
-    const scored = this.entries.map(entry => {
-      let score = 0;
-      const contentLower = entry.content.toLowerCase();
-      const tagsLower = entry.tags.map(t => t.toLowerCase());
-
-      // Exact match in content
-      if (contentLower.includes(queryLower)) score += 10;
-
-      // Tag match
-      if (tagsLower.some(t => t.includes(queryLower))) score += 5;
-
-      // Word-level matches
-      const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
-      for (const word of queryWords) {
-        if (contentLower.includes(word)) score += 2;
-        if (tagsLower.some(t => t.includes(word))) score += 1;
-      }
-
-      return { entry, score };
-    });
-
-    return scored
-      .filter(s => s.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
-      .map(s => s.entry);
   }
 
   list(limit: number = 50): MemoryEntry[] {
     return this.entries.slice(0, limit);
   }
 
-  // Build Pi SDK tool definitions for memory operations
+  /** Lexical search only. Always available, no network. */
+  searchLexical(query: string, limit: number = 10): MemorySearchHit[] {
+    return this.index
+      .search(query, limit)
+      .map((hit) => ({
+        ...this.entries[hit.index],
+        score: hit.score,
+        matchType: 'bm25' as const
+      }))
+      .filter((hit) => hit.id !== undefined);
+  }
+
+  /**
+   * Hybrid search: BM25 always runs; when an embedding model is configured the
+   * semantic score is blended in. Falls back silently to lexical-only.
+   */
+  async search(query: string, limit: number = 10): Promise<MemorySearchHit[]> {
+    const lexical = this.searchLexical(query, Math.max(limit * 3, 20));
+    if (lexical.length === 0 && !embeddingClient.isAvailable()) return [];
+
+    const vectors = await embeddingClient.embed([
+      query,
+      ...this.entries.map((e) => e.content)
+    ]);
+
+    if (!vectors) {
+      return lexical.slice(0, limit);
+    }
+
+    const [queryVec, ...docVecs] = vectors;
+
+    // Normalize BM25 scores into 0..1 so they can be blended with cosine.
+    const maxBm25 = lexical.reduce((m, h) => Math.max(m, h.score), 0);
+    const bm25ById = new Map<string, number>();
+    for (const hit of lexical) {
+      bm25ById.set(hit.id, maxBm25 > 0 ? hit.score / maxBm25 : 0);
+    }
+
+    const scored: MemorySearchHit[] = this.entries.map((entry, i) => {
+      const docVec = docVecs[i];
+      const semantic = docVec ? Math.max(0, cosineSimilarity(queryVec, docVec)) : 0;
+      const lexicalScore = bm25ById.get(entry.id) || 0;
+      const score = lexicalScore * (1 - SEMANTIC_WEIGHT) + semantic * SEMANTIC_WEIGHT;
+
+      return {
+        ...entry,
+        score,
+        matchType: lexicalScore > 0 && semantic > 0 ? ('hybrid' as const) : semantic > 0 ? ('semantic' as const) : ('bm25' as const)
+      };
+    });
+
+    return scored
+      .filter((h) => h.score > 0.01)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+  }
+
+  getSearchMode(): { mode: 'hybrid' | 'lexical'; detail: string } {
+    if (embeddingClient.isAvailable()) {
+      return { mode: 'hybrid', detail: 'BM25 + semantic embeddings' };
+    }
+    return {
+      mode: 'lexical',
+      detail: embeddingClient.getDisabledReason() || 'BM25 lexical search'
+    };
+  }
+
   buildTools(): ToolDefinition[] {
     const service = this;
 
@@ -130,16 +192,21 @@ export class MemoryService {
       defineTool({
         name: 'memory_add',
         label: 'Memory: Add',
-        description: 'Add a new memory entry to long-term knowledge base. Use this to store important information, facts, preferences, or insights that should be remembered across sessions.',
+        description:
+          'Add a new memory entry to the long-term knowledge base. Use this to store important information, facts, preferences, or insights that should be remembered across sessions.',
         parameters: Type.Object({
           content: Type.String({ description: 'The content to remember' }),
-          tags: Type.Optional(Type.Array(Type.String(), { description: 'Optional tags for categorization' })),
+          tags: Type.Optional(
+            Type.Array(Type.String(), { description: 'Optional tags for categorization' })
+          ),
           source: Type.Optional(Type.String({ description: 'Source of the memory (default: agent)' }))
         }),
         async execute(_id, params) {
           const entry = service.add(params.content, params.tags || [], params.source || 'agent');
           return {
-            content: [{ type: 'text', text: `Memory saved (ID: ${entry.id})\n\n${entry.content}` }],
+            content: [
+              { type: 'text', text: `Memory saved (ID: ${entry.id})\n\n${entry.content}` }
+            ],
             details: { entry }
           };
         }
@@ -148,24 +215,32 @@ export class MemoryService {
       defineTool({
         name: 'memory_search',
         label: 'Memory: Search',
-        description: 'Search the long-term memory for relevant information. Use this when you need to recall past conversations, facts, preferences, or previously stored knowledge.',
+        description:
+          'Search the long-term memory for relevant information. Use this when you need to recall past conversations, facts, preferences, or previously stored knowledge.',
         parameters: Type.Object({
           query: Type.String({ description: 'Search query' }),
           limit: Type.Optional(Type.Number({ description: 'Max results (default: 10)' }))
         }),
         async execute(_id, params) {
-          const results = service.search(params.query, params.limit || 10);
+          const results = await service.search(params.query, params.limit || 10);
           if (results.length === 0) {
             return {
               content: [{ type: 'text', text: `No memories found for: ${params.query}` }],
               details: { results: [] }
             };
           }
-          const text = results.map((r, i) =>
-            `[${i + 1}] ${r.content}\n    tags: ${r.tags.join(', ') || 'none'}\n    id: ${r.id}`
-          ).join('\n\n');
+          const text = results
+            .map(
+              (r, i) =>
+                `[${i + 1}] (${r.matchType}, score ${r.score.toFixed(2)}) ${r.content}\n    tags: ${
+                  r.tags.join(', ') || 'none'
+                }\n    id: ${r.id}`
+            )
+            .join('\n\n');
           return {
-            content: [{ type: 'text', text: `Found ${results.length} memory entries:\n\n${text}` }],
+            content: [
+              { type: 'text', text: `Found ${results.length} memory entries:\n\n${text}` }
+            ],
             details: { results }
           };
         }
@@ -186,9 +261,14 @@ export class MemoryService {
               details: { entries: [] }
             };
           }
-          const text = entries.map((e, i) =>
-            `[${i + 1}] ${e.content.slice(0, 100)}${e.content.length > 100 ? '...' : ''}\n    tags: ${e.tags.join(', ') || 'none'}\n    id: ${e.id}`
-          ).join('\n\n');
+          const text = entries
+            .map(
+              (e, i) =>
+                `[${i + 1}] ${e.content.slice(0, 100)}${
+                  e.content.length > 100 ? '...' : ''
+                }\n    tags: ${e.tags.join(', ') || 'none'}\n    id: ${e.id}`
+            )
+            .join('\n\n');
           return {
             content: [{ type: 'text', text: `${entries.length} memories:\n\n${text}` }],
             details: { entries }
@@ -206,7 +286,12 @@ export class MemoryService {
         async execute(_id, params) {
           const deleted = service.delete(params.id);
           return {
-            content: [{ type: 'text', text: deleted ? `Memory ${params.id} deleted.` : `Memory ${params.id} not found.` }],
+            content: [
+              {
+                type: 'text',
+                text: deleted ? `Memory ${params.id} deleted.` : `Memory ${params.id} not found.`
+              }
+            ],
             details: { deleted, id: params.id }
           };
         }

@@ -15,13 +15,14 @@ export function ModelsSettings() {
     provider: 'openai-compatible' as ModelProvider,
     model: '',
     baseUrl: '',
-    apiKey: ''
+    apiKey: '',
+    embeddingModel: ''
   });
 
   const handleAdd = async () => {
     if (!newModel.name || !newModel.model) return;
     await addModel(newModel);
-    setNewModel({ name: '', provider: 'openai-compatible', model: '', baseUrl: '', apiKey: '' });
+    setNewModel({ name: '', provider: 'openai-compatible', model: '', baseUrl: '', apiKey: '', embeddingModel: '' });
     setShowAddForm(false);
   };
 
@@ -107,6 +108,19 @@ export function ModelsSettings() {
                 value={newModel.apiKey}
                 onChange={(e) => setNewModel({ ...newModel, apiKey: e.target.value })}
                 placeholder="sk-..."
+                className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="text-xs text-muted-foreground block mb-1">
+                Embedding Model (optional — enables semantic memory search)
+              </label>
+              <input
+                type="text"
+                value={newModel.embeddingModel}
+                onChange={(e) => setNewModel({ ...newModel, embeddingModel: e.target.value })}
+                placeholder="text-embedding-3-small"
                 className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
               />
             </div>

@@ -47,6 +47,8 @@ export interface ModelConfig {
   apiKey?: string;
   thinkingLevel?: 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   isDefault?: boolean;
+  /** Optional embedding model for semantic memory search (OpenAI-compatible /embeddings). */
+  embeddingModel?: string;
 }
 
 export interface MCPConfig {
