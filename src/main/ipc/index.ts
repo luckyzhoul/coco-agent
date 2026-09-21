@@ -5,6 +5,7 @@ import { agentRuntime } from '../agent/AgentRuntime';
 import { settingsManager } from '../settings/SettingsManager';
 import { modelManager } from '../models/ModelManager';
 import { mcpManager } from '../mcp/McpManager';
+import { skillManager } from '../skills/SkillManager';
 import {
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
@@ -35,7 +36,10 @@ import {
   MCP_STOP,
   MCP_RESTART,
   MCP_GET_STATUS,
-  MCP_LIST_TOOLS
+  MCP_LIST_TOOLS,
+  SKILLS_LIST,
+  SKILLS_GET_DETAIL,
+  SKILLS_RELOAD
 } from '../../shared/ipc-channels';
 import type { AppSettings, ModelConfig, MCPConfig } from '../../shared/types';
 
@@ -171,5 +175,18 @@ export function registerIpcHandlers(
 
   ipcMain.handle(MCP_LIST_TOOLS, (_e, id: string) => {
     return mcpManager.listTools(id);
+  });
+
+  // Skills handlers
+  ipcMain.handle(SKILLS_LIST, () => {
+    return skillManager.list();
+  });
+
+  ipcMain.handle(SKILLS_GET_DETAIL, (_e, name: string) => {
+    return skillManager.getDetail(name);
+  });
+
+  ipcMain.handle(SKILLS_RELOAD, () => {
+    return skillManager.reload();
   });
 }
