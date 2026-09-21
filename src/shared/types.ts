@@ -62,6 +62,15 @@ export interface MCPConfig {
   env?: Record<string, string>;
 }
 
+export interface ModelTestResult {
+  ok: boolean;
+  /** Human-readable summary, safe to show in the UI. */
+  message: string;
+  /** The model's reply when the request succeeded. */
+  reply?: string;
+  latencyMs?: number;
+}
+
 export interface SkillInfo {
   name: string;
   description: string;

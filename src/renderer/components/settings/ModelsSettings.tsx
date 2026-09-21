@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSettingsStore } from '../../stores/useSettingsStore';
-import type { ModelConfig, ModelProvider } from '@shared/types';
+import type { ModelConfig, ModelProvider, ModelTestResult } from '@shared/types';
 
 export function ModelsSettings() {
   const models = useSettingsStore((s) => s.models);
@@ -183,37 +183,85 @@ function ModelItem({
     'ark': 'Ark'
   };
 
+  const [testResult, setTestResult] = useState<ModelTestResult | null>(null);
+  const [testing, setTesting] = useState(false);
+
+  const handleTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await window.electronAPI.models.test(model.id);
+      setTestResult(result);
+    } catch (err) {
+      setTestResult({
+        ok: false,
+        message: err instanceof Error ? err.message : String(err)
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
-    <div className={`flex items-center justify-between p-3 rounded-lg border ${
+    <div className={`p-3 rounded-lg border ${
       isActive ? 'border-primary/50 bg-primary/5' : 'border-border bg-background'
     }`}>
-      <div className="flex items-center gap-3">
-        <div className="w-2 h-2 rounded-full bg-green-400" />
-        <div>
-          <div className="text-sm font-medium">{model.name}</div>
-          <div className="text-xs text-muted-foreground">
-            {providerLabels[model.provider]} · {model.model}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-green-400" />
+          <div>
+            <div className="text-sm font-medium">{model.name}</div>
+            <div className="text-xs text-muted-foreground">
+              {providerLabels[model.provider]} · {model.model}
+            </div>
           </div>
         </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {isActive ? (
-          <span className="text-xs text-primary font-medium">Active</span>
-        ) : (
+        <div className="flex items-center gap-2">
+          {isActive ? (
+            <span className="text-xs text-primary font-medium">Active</span>
+          ) : (
+            <button
+              onClick={onSetActive}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Set Active
+            </button>
+          )}
           <button
-            onClick={onSetActive}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            onClick={handleTest}
+            disabled={testing}
+            className="text-xs px-2 py-1 rounded border border-input hover:bg-accent disabled:opacity-50 transition-colors"
           >
-            Set Active
+            {testing ? 'Testing…' : 'Test'}
           </button>
-        )}
-        <button
-          onClick={onDelete}
-          className="text-xs text-red-400 hover:text-red-300 transition-colors"
-        >
-          Delete
-        </button>
+          <button
+            onClick={onDelete}
+            className="text-xs text-red-400 hover:text-red-300 transition-colors"
+          >
+            Delete
+          </button>
+        </div>
       </div>
+
+      {testResult && (
+        <div
+          className={`mt-2 rounded-md px-3 py-2 text-xs ${
+            testResult.ok
+              ? 'bg-green-500/10 border border-green-500/30 text-green-400'
+              : 'bg-red-500/10 border border-red-500/30 text-red-400'
+          }`}
+        >
+          <div className="font-medium">
+            {testResult.ok ? '✓ ' : '✕ '}
+            {testResult.message}
+            {typeof testResult.latencyMs === 'number' && ` (${testResult.latencyMs}ms)`}
+          </div>
+          {testResult.reply && (
+            <div className="mt-1 font-mono opacity-80">“{testResult.reply}”</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+

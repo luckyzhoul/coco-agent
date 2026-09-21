@@ -1,6 +1,11 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
+import { initCocoHome } from './paths';
 import { registerIpcHandlers } from './ipc';
+
+// paths.ts already bootstraps COCO_HOME at import time (imports are hoisted,
+// so this runs before the module body anyway). Kept explicit for readability.
+initCocoHome();
 
 let mainWindow: BrowserWindow | null = null;
 

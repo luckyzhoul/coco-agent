@@ -1,14 +1,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { app } from 'electron';
 import type { Message, SessionInfo } from '../../shared/types';
+import { paths, ensureDir } from '../paths';
 
 function getDataDir(): string {
-  const dir = path.join(app.getPath('userData'), 'cocoagent', 'sessions');
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  return dir;
+  return ensureDir(paths.sessionsDir);
 }
 
 function getSessionFilePath(sessionId: string): string {
@@ -16,7 +12,7 @@ function getSessionFilePath(sessionId: string): string {
 }
 
 function getMetaPath(): string {
-  return path.join(getDataDir(), 'meta.json');
+  return paths.sessionMetaFile;
 }
 
 interface SessionMeta {

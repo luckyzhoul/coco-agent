@@ -1,17 +1,21 @@
 import type { BrowserWindow } from 'electron';
+import * as path from 'node:path';
 import {
   createAgentSession,
   createCodingTools,
+  ModelRuntime,
   SessionManager,
   SettingsManager,
   type AgentSession,
   type AgentSessionEvent
 } from '@earendil-works/pi-coding-agent';
 import { modelManager } from '../models/ModelManager';
+import { providerIdFor, syncPiModelConfig } from '../models/PiModelConfig';
 import { mcpManager } from '../mcp/McpManager';
 import { buildMcpTools } from '../mcp/McpToolBridge';
 import { memoryService } from '../memory/MemoryService';
 import { approvalManager } from '../approval/ApprovalManager';
+import { PI_RUNTIME_DIR } from '../paths';
 import { buildBrowserTools } from '../browser/browserTools';
 import { buildComputerTools } from '../computer/computerTools';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
@@ -61,13 +65,47 @@ export class AgentRuntime {
     this.emit(AGENT_EVENT_STATUS, this.status);
   }
 
-  private applyModelEnvVars(): void {
-    const envVars = modelManager.getModelEnvVars();
-    for (const [key, value] of Object.entries(envVars)) {
-      if (value) {
-        process.env[key] = value;
-      }
+  /**
+   * Materialise model settings into the Pi runtime directory and resolve the
+   * active model. Returns undefined when no usable model is configured, which
+   * the caller surfaces to the user instead of failing silently.
+   */
+  private async resolveModelRuntime(): Promise<{
+    modelRuntime: ModelRuntime;
+    model: NonNullable<Parameters<typeof createAgentSession>[0]>['model'];
+  } | undefined> {
+    const models = modelManager.list();
+    const active = modelManager.getActive();
+
+    if (!active) {
+      this.emit(
+        AGENT_EVENT_ERROR,
+        'No model configured. Open Settings → Models and add one.'
+      );
+      return undefined;
     }
+
+    syncPiModelConfig(models, active.id);
+
+    const modelRuntime = await ModelRuntime.create({
+      authPath: path.join(PI_RUNTIME_DIR, 'auth.json'),
+      modelsPath: path.join(PI_RUNTIME_DIR, 'models.json')
+    });
+
+    const providerId = providerIdFor(active);
+    const model = modelRuntime.getModel(providerId, active.model);
+
+    if (!model) {
+      const detail = modelRuntime.getError() || 'unknown reason';
+      this.emit(
+        AGENT_EVENT_ERROR,
+        `Model "${active.name}" (${active.model}) is not available in the Pi runtime: ${detail}. ` +
+          `Check the base URL and API key in Settings → Models.`
+      );
+      return undefined;
+    }
+
+    return { modelRuntime, model };
   }
 
   private async buildCustomTools(workspacePath: string): Promise<ToolDefinition[]> {
@@ -124,20 +162,23 @@ export class AgentRuntime {
     const sessionId = generateSessionId();
     const title = `New Chat ${new Date().toLocaleTimeString()}`;
 
-    // Apply active model configuration via environment variables
-    this.applyModelEnvVars();
-
     const piSettingsManager = SettingsManager.inMemory({
       compaction: { enabled: false }
     });
 
     const allCustomTools = await this.buildCustomTools(workspacePath);
 
+    // Materialise our model settings into models.json/auth.json and resolve the
+    // active model explicitly. Pi has no other way of learning about models.
+    const runtime = await this.resolveModelRuntime();
     const { session } = await createAgentSession({
       cwd: workspacePath,
+      agentDir: PI_RUNTIME_DIR,
       customTools: allCustomTools as any[],
       sessionManager: SessionManager.inMemory(),
-      settingsManager: piSettingsManager
+      settingsManager: piSettingsManager,
+      modelRuntime: runtime?.modelRuntime,
+      model: runtime?.model
     });
 
     this.activeSession = session;
@@ -169,25 +210,22 @@ export class AgentRuntime {
       this.unsubscriber = null;
     }
 
-    // Apply active model configuration via environment variables
-    this.applyModelEnvVars();
-
+    // Apply active model configuration
     const piSettingsManager = SettingsManager.inMemory({
       compaction: { enabled: false }
     });
 
-    const codingTools = createCodingTools(meta.workspacePath);
+    const allCustomTools = await this.buildCustomTools(meta.workspacePath);
 
-    // Load MCP tools from enabled servers
-    const mcpTools = await this.loadMcpTools();
-    const memoryTools = memoryService.buildTools();
-    const allCustomTools = [...codingTools, ...mcpTools, ...memoryTools];
-
+    const runtime = await this.resolveModelRuntime();
     const { session } = await createAgentSession({
       cwd: meta.workspacePath,
+      agentDir: PI_RUNTIME_DIR,
       customTools: allCustomTools as any[],
       sessionManager: SessionManager.inMemory(),
-      settingsManager: piSettingsManager
+      settingsManager: piSettingsManager,
+      modelRuntime: runtime?.modelRuntime,
+      model: runtime?.model
     });
 
     this.activeSession = session;
@@ -292,6 +330,18 @@ export class AgentRuntime {
       }
 
       case 'message_end': {
+        // An assistant message can still end in a provider error or an abort;
+        // without this check the user just sees silence.
+        const msg = event.message as { stopReason?: string; errorMessage?: string };
+        if (msg.stopReason === 'error' || msg.stopReason === 'aborted') {
+          const detail =
+            msg.errorMessage ||
+            (msg.stopReason === 'aborted' ? 'Generation aborted.' : 'Model returned an error.');
+          this.emit(AGENT_EVENT_ERROR, detail);
+          this.setStatus({ state: msg.stopReason === 'aborted' ? 'idle' : 'error' });
+          break;
+        }
+
         const content = this.currentAssistantContent;
         const toolCalls = Array.from(this.activeToolCalls.values());
         const assistantMsg: Message = {

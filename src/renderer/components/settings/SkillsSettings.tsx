@@ -188,8 +188,8 @@ export function SkillsSettings() {
           <div className="bg-background border border-border rounded-lg p-4">
             <div className="text-sm font-medium mb-2">Skill locations</div>
             <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-              <li><code className="bg-muted px-1 rounded">~/.cocoagent/skills/</code> (global — managed here)</li>
-              <li><code className="bg-muted px-1 rounded">&lt;workspace&gt;/.cocoagent/skills/</code> (project)</li>
+              <li><code className="bg-muted px-1 rounded">{`${'{COCO_HOME}'}/skills/`}</code> (global — managed here, default <code>~/.coco</code>)</li>
+              <li><code className="bg-muted px-1 rounded">&lt;workspace&gt;/.coco/skills/</code> (project)</li>
             </ul>
           </div>
 

@@ -1,8 +1,23 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { useSettingsStore } from '../../stores/useSettingsStore';
+
+interface AppPaths {
+  home: string;
+  piRuntime: string;
+  settingsFile: string;
+  sessionsDir: string;
+  skillsDir: string;
+  memoryFile: string;
+  homeOverridden: boolean;
+}
 
 export function GeneralSettings() {
   const settings = useSettingsStore((s) => s.settings);
+  const [appPaths, setAppPaths] = useState<AppPaths | null>(null);
+
+  useEffect(() => {
+    window.electronAPI.app.getPaths().then(setAppPaths).catch(() => {});
+  }, []);
 
   if (!settings) return null;
 
@@ -78,6 +93,53 @@ export function GeneralSettings() {
               <option value="medium">Medium</option>
               <option value="high">High</option>
             </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-border pt-6">
+        <h3 className="text-base font-medium mb-1">Data Directory</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          All CocoAgent data lives under <code className="bg-muted px-1 rounded">COCO_HOME</code>.
+          Override it with the <code className="bg-muted px-1 rounded">COCO_HOME</code> environment
+          variable.
+        </p>
+
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <code className="flex-1 bg-background border border-border rounded-md px-3 py-1.5 text-xs font-mono truncate">
+              {appPaths?.home || '…'}
+            </code>
+            {appPaths?.homeOverridden && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground shrink-0">
+                from env
+              </span>
+            )}
+            <button
+              onClick={() => window.electronAPI.app.openHome()}
+              className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors shrink-0"
+            >
+              Open
+            </button>
+          </div>
+
+          <div className="text-xs text-muted-foreground space-y-1 pt-1">
+            <div>
+              Settings: <code className="bg-muted px-1 rounded">{appPaths?.settingsFile}</code>
+            </div>
+            <div>
+              Sessions: <code className="bg-muted px-1 rounded">{appPaths?.sessionsDir}</code>
+            </div>
+            <div>
+              Skills: <code className="bg-muted px-1 rounded">{appPaths?.skillsDir}</code>
+            </div>
+            <div>
+              Memory: <code className="bg-muted px-1 rounded">{appPaths?.memoryFile}</code>
+            </div>
+            <div>
+              Pi SDK runtime:{' '}
+              <code className="bg-muted px-1 rounded">{appPaths?.piRuntime}</code>
+            </div>
           </div>
         </div>
       </div>

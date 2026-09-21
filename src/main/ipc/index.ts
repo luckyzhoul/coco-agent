@@ -60,6 +60,8 @@ import {
   BROWSER_SET_VISIBLE,
   BROWSER_CLOSE,
   COMPUTER_GET_SCREEN_INFO,
+  APP_GET_PATHS,
+  APP_OPEN_HOME,
   UPDATE_GET_STATUS,
   UPDATE_CHECK,
   UPDATE_DOWNLOAD,
@@ -67,6 +69,7 @@ import {
   UPDATE_SET_FEED
 } from '../../shared/ipc-channels';
 import type { AppSettings, ModelConfig, MCPConfig, ToolApprovalDecision } from '../../shared/types';
+import { paths } from '../paths';
 
 export function registerIpcHandlers(
   ipcMain: IpcMain,
@@ -290,6 +293,24 @@ export function registerIpcHandlers(
   // Computer use handlers
   ipcMain.handle(COMPUTER_GET_SCREEN_INFO, () => {
     return computerService.getScreenInfo();
+  });
+
+  // App-level handlers
+  ipcMain.handle(APP_GET_PATHS, () => {
+    return {
+      home: paths.home,
+      piRuntime: paths.piRuntime,
+      settingsFile: paths.settingsFile,
+      sessionsDir: paths.sessionsDir,
+      skillsDir: paths.skillsDir,
+      memoryFile: paths.memoryFile,
+      homeOverridden: !!process.env.COCO_HOME?.trim()
+    };
+  });
+
+  ipcMain.handle(APP_OPEN_HOME, async () => {
+    await shell.openPath(paths.home);
+    return paths.home;
   });
 
   // Auto-update handlers

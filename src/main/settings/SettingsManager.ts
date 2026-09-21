@@ -1,9 +1,6 @@
-import { app } from 'electron';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import type { AppSettings, ModelConfig, MCPConfig } from '../../shared/types';
-
-const SETTINGS_FILE = 'settings.json';
+import { paths, ensureDir, COCO_HOME } from '../paths';
 
 const DEFAULT_SETTINGS: AppSettings = {
   models: [],
@@ -22,11 +19,8 @@ export class SettingsManager {
   private filePath: string;
 
   constructor() {
-    const dataDir = path.join(app.getPath('userData'), 'cocoagent');
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    this.filePath = path.join(dataDir, SETTINGS_FILE);
+    ensureDir(COCO_HOME);
+    this.filePath = paths.settingsFile;
     this.settings = this.load();
   }
 

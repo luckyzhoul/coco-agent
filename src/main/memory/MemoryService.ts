@@ -1,9 +1,8 @@
 import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { app } from 'electron';
 import { Type } from '@sinclair/typebox';
 import { defineTool } from '@earendil-works/pi-coding-agent';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
+import { paths, ensureDir, COCO_HOME } from '../paths';
 import { Bm25Index } from './Bm25Index';
 import { embeddingClient, cosineSimilarity } from './EmbeddingClient';
 
@@ -31,11 +30,8 @@ export class MemoryService {
   private embeddings = new Map<string, number[]>();
 
   constructor() {
-    const dataDir = path.join(app.getPath('userData'), 'cocoagent');
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    this.filePath = path.join(dataDir, 'memory.json');
+    ensureDir(COCO_HOME);
+    this.filePath = paths.memoryFile;
     this.load();
     this.reindex();
   }

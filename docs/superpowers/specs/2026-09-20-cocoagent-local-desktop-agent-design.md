@@ -148,7 +148,7 @@ class AgentRuntime {
 
 | 模块 | 说明 |
 |------|------|
-| 配置管理 | 全局 MCP 配置 (`~/.cocoagent/mcp.json`) + 工作区配置 (`.cocoagent/mcp.json`) |
+| 配置管理 | 全局 MCP 配置 (`${COCO_HOME}/mcp.json`) + 工作区配置 (`${workspace}/.coco/mcp.json`) |
 | 服务生命周期 | stdio 模式（本地进程）、SSE/HTTP 模式（远程）、健康检查 + 自动重连 |
 | 日志收集 | MCP 服务日志收集，便于调试 |
 | UI 集成 | 设置页增删改查、工具发现列表、工具调用可视化 |
@@ -163,8 +163,8 @@ class AgentRuntime {
 基于 Pi SDK 的 Skills 发现机制，增加可视化管理。
 
 **技能发现位置**：
-- 全局：`~/.cocoagent/skills/`
-- 工作区：`.cocoagent/skills/`
+- 全局：`${COCO_HOME}/skills/`
+- 工作区：`${workspace}/.coco/skills/`
 - 内置：随应用打包的核心技能
 
 **功能**：

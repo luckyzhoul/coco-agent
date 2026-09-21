@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { app } from 'electron';
 import type { SkillInfo } from '../../shared/types';
+import { paths, ensureDir } from '../paths';
 
 interface SkillFrontmatter {
   name?: string;
@@ -16,11 +16,7 @@ export class SkillManager {
   }
 
   getSkillsDir(): string {
-    const dir = path.join(app.getPath('userData'), 'cocoagent', 'skills');
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    return dir;
+    return ensureDir(paths.skillsDir);
   }
 
   /**
@@ -111,9 +107,8 @@ export class SkillManager {
   }
 
   private loadAllSkills(): void {
-    // Global skills: ~/.cocoagent/skills
-    const globalDir = path.join(app.getPath('userData'), 'cocoagent', 'skills');
-    this.loadSkillsFromDir(globalDir, 'global');
+    // Global skills: ${COCO_HOME}/skills
+    this.loadSkillsFromDir(paths.skillsDir, 'global');
 
     // Built-in skills (bundled with app)
     // For now, we don't have built-in skills, but the structure is here

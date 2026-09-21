@@ -1,30 +1,22 @@
-import { app, dialog } from 'electron';
+import { dialog } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { WorkspaceInfo } from '../../shared/types';
+import { paths, ensureDir, COCO_HOME } from '../paths';
 
-const RECENT_WORKSPACES_FILE = 'recent-workspaces.json';
 const MAX_RECENT = 10;
 
 export class WorkspaceManager {
   private currentWorkspace: WorkspaceInfo | null = null;
   private recentWorkspaces: WorkspaceInfo[] = [];
-  private dataDir: string;
 
   constructor() {
-    this.dataDir = path.join(app.getPath('userData'), 'cocoagent');
-    this.ensureDataDir();
+    ensureDir(COCO_HOME);
     this.loadRecentWorkspaces();
   }
 
-  private ensureDataDir(): void {
-    if (!fs.existsSync(this.dataDir)) {
-      fs.mkdirSync(this.dataDir, { recursive: true });
-    }
-  }
-
   private getRecentFilePath(): string {
-    return path.join(this.dataDir, RECENT_WORKSPACES_FILE);
+    return paths.recentWorkspacesFile;
   }
 
   private loadRecentWorkspaces(): void {

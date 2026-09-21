@@ -74,6 +74,10 @@ export const BROWSER_CLOSE = 'browser:close';
 // Computer use channels
 export const COMPUTER_GET_SCREEN_INFO = 'computer:getScreenInfo';
 
+// App-level channels
+export const APP_GET_PATHS = 'app:getPaths';
+export const APP_OPEN_HOME = 'app:openHome';
+
 // Auto-update channels
 export const UPDATE_GET_STATUS = 'update:getStatus';
 export const UPDATE_CHECK = 'update:check';

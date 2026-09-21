@@ -6,6 +6,7 @@ import type {
   WorkspaceInfo,
   AppSettings,
   ModelConfig,
+  ModelTestResult,
   MCPConfig,
   SkillInfo
 } from '../shared/types';
@@ -64,6 +65,8 @@ import {
   BROWSER_SET_VISIBLE,
   BROWSER_CLOSE,
   COMPUTER_GET_SCREEN_INFO,
+  APP_GET_PATHS,
+  APP_OPEN_HOME,
   UPDATE_GET_STATUS,
   UPDATE_CHECK,
   UPDATE_DOWNLOAD,
@@ -123,7 +126,7 @@ const electronAPI = {
       ipcRenderer.invoke(MODELS_DELETE, id) as Promise<ModelConfig[]>,
     setActive: (id: string) => ipcRenderer.invoke(MODELS_SET_ACTIVE, id),
     getActive: () => ipcRenderer.invoke(MODELS_GET_ACTIVE) as Promise<ModelConfig | null>,
-    test: (id: string) => ipcRenderer.invoke(MODELS_TEST, id) as Promise<boolean>
+    test: (id: string) => ipcRenderer.invoke(MODELS_TEST, id) as Promise<ModelTestResult>
   },
   mcp: {
     list: () => ipcRenderer.invoke(MCP_LIST) as Promise<MCPConfig[]>,
@@ -233,6 +236,19 @@ const electronAPI = {
       ipcRenderer.invoke(BROWSER_GET_STATUS) as Promise<{ open: boolean; visible: boolean; url: string }>,
     setVisible: (visible: boolean) => ipcRenderer.invoke(BROWSER_SET_VISIBLE, visible),
     close: () => ipcRenderer.invoke(BROWSER_CLOSE)
+  },
+  app: {
+    getPaths: () =>
+      ipcRenderer.invoke(APP_GET_PATHS) as Promise<{
+        home: string;
+        piRuntime: string;
+        settingsFile: string;
+        sessionsDir: string;
+        skillsDir: string;
+        memoryFile: string;
+        homeOverridden: boolean;
+      }>,
+    openHome: () => ipcRenderer.invoke(APP_OPEN_HOME) as Promise<string>
   },
   update: {
     getStatus: () => ipcRenderer.invoke(UPDATE_GET_STATUS) as Promise<UpdateStatus>,

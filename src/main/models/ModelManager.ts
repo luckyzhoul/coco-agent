@@ -1,5 +1,5 @@
 import { settingsManager } from '../settings/SettingsManager';
-import type { ModelConfig } from '../../shared/types';
+import type { ModelConfig, ModelTestResult } from '../../shared/types';
 
 function generateId(): string {
   return `model_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -34,68 +34,134 @@ export class ModelManager {
     return settingsManager.getActiveModel();
   }
 
-  async testConnection(id: string): Promise<boolean> {
+  /**
+   * Send a real minimal chat completion so a green result means the exact
+   * combination of base URL + key + model id actually works, not merely that
+   * some endpoint answered.
+   */
+  async testConnection(id: string): Promise<ModelTestResult> {
     const models = settingsManager.getModels();
     const model = models.find(m => m.id === id);
-    if (!model) return false;
+
+    if (!model) {
+      return { ok: false, message: 'Model config not found.' };
+    }
+    if (!model.baseUrl) {
+      return { ok: false, message: 'Base URL is not set.' };
+    }
+    if (model.provider !== 'ollama' && !model.apiKey) {
+      return { ok: false, message: 'API key is not set.' };
+    }
+
+    const started = Date.now();
+    const baseUrl = model.baseUrl.replace(/\/+$/, '');
 
     try {
-      const result = await this.simpleApiTest(model);
-      return result;
-    } catch {
-      return false;
+      if (model.provider === 'anthropic') {
+        return await this.testAnthropic(model, baseUrl, started);
+      }
+      return await this.testOpenAiCompatible(model, baseUrl, started);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return {
+        ok: false,
+        message: `Request failed: ${detail}`,
+        latencyMs: Date.now() - started
+      };
     }
   }
 
-  private async simpleApiTest(model: ModelConfig): Promise<boolean> {
-    if (!model.apiKey || !model.baseUrl) {
-      return false;
+  private async testOpenAiCompatible(
+    model: ModelConfig,
+    baseUrl: string,
+    started: number
+  ): Promise<ModelTestResult> {
+    // Ollama serves its OpenAI-compatible API under /v1.
+    const base = model.provider === 'ollama' && !baseUrl.endsWith('/v1')
+      ? `${baseUrl}/v1`
+      : baseUrl;
+
+    const resp = await fetch(`${base}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(model.apiKey ? { Authorization: `Bearer ${model.apiKey}` } : {})
+      },
+      body: JSON.stringify({
+        model: model.model,
+        messages: [{ role: 'user', content: 'Reply with the single word: pong' }],
+        max_tokens: 16,
+        stream: false
+      }),
+      signal: AbortSignal.timeout(30000)
+    });
+
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => '');
+      return {
+        ok: false,
+        message: `HTTP ${resp.status}${body ? ` — ${body.slice(0, 200)}` : ''}`,
+        latencyMs: Date.now() - started
+      };
     }
 
-    try {
-      const url = model.baseUrl.replace(/\/$/, '') + '/models';
-      const resp = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${model.apiKey}`
-        }
-      });
-      return resp.ok;
-    } catch {
-      return false;
-    }
+    const json = (await resp.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const reply = json.choices?.[0]?.message?.content?.trim() || '';
+
+    return {
+      ok: true,
+      message: `Connected. Model replied.`,
+      reply: reply || '(empty response)',
+      latencyMs: Date.now() - started
+    };
   }
 
-  // Build env vars for Pi SDK based on active model
-  getModelEnvVars(): Record<string, string> {
-    const active = this.getActive();
-    if (!active) return {};
+  private async testAnthropic(
+    model: ModelConfig,
+    baseUrl: string,
+    started: number
+  ): Promise<ModelTestResult> {
+    const resp = await fetch(`${baseUrl}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': model.apiKey || '',
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: model.model,
+        max_tokens: 16,
+        messages: [{ role: 'user', content: 'Reply with the single word: pong' }]
+      }),
+      signal: AbortSignal.timeout(30000)
+    });
 
-    const env: Record<string, string> = {};
-
-    switch (active.provider) {
-      case 'openai-compatible':
-        env.OPENAI_API_KEY = active.apiKey || '';
-        env.OPENAI_BASE_URL = active.baseUrl || '';
-        break;
-      case 'anthropic':
-        env.ANTHROPIC_API_KEY = active.apiKey || '';
-        env.ANTHROPIC_BASE_URL = active.baseUrl || '';
-        break;
-      case 'ollama':
-        env.OLLAMA_BASE_URL = active.baseUrl || 'http://localhost:11434';
-        break;
-      case 'ark':
-        env.ARK_API_KEY = active.apiKey || '';
-        env.ARK_BASE_URL = active.baseUrl || '';
-        break;
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => '');
+      return {
+        ok: false,
+        message: `HTTP ${resp.status}${body ? ` — ${body.slice(0, 200)}` : ''}`,
+        latencyMs: Date.now() - started
+      };
     }
 
-    return env;
-  }
+    const json = (await resp.json()) as {
+      content?: { type: string; text?: string }[];
+    };
+    const reply = (json.content || [])
+      .filter(c => c.type === 'text')
+      .map(c => c.text || '')
+      .join('')
+      .trim();
 
-  getModelNameForPi(): string | null {
-    const active = this.getActive();
-    return active?.model || null;
+    return {
+      ok: true,
+      message: 'Connected. Model replied.',
+      reply: reply || '(empty response)',
+      latencyMs: Date.now() - started
+    };
   }
 }
 
