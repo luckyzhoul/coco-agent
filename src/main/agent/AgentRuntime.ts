@@ -12,6 +12,8 @@ import { mcpManager } from '../mcp/McpManager';
 import { buildMcpTools } from '../mcp/McpToolBridge';
 import { memoryService } from '../memory/MemoryService';
 import { approvalManager } from '../approval/ApprovalManager';
+import { buildBrowserTools } from '../browser/browserTools';
+import { buildComputerTools } from '../computer/computerTools';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import {
   AGENT_EVENT_MESSAGE,
@@ -68,6 +70,22 @@ export class AgentRuntime {
     }
   }
 
+  private async buildCustomTools(workspacePath: string): Promise<ToolDefinition[]> {
+    const codingTools = createCodingTools(workspacePath);
+    const mcpTools = await this.loadMcpTools();
+    const memoryTools = memoryService.buildTools();
+    const browserTools = buildBrowserTools(approvalManager);
+    const computerTools = buildComputerTools(approvalManager);
+
+    return [
+      ...codingTools,
+      ...mcpTools,
+      ...memoryTools,
+      ...browserTools,
+      ...computerTools
+    ] as unknown as ToolDefinition[];
+  }
+
   private async loadMcpTools(): Promise<ToolDefinition[]> {
     const tools: ToolDefinition[] = [];
     const mcpConfigs = mcpManager.list();
@@ -113,12 +131,7 @@ export class AgentRuntime {
       compaction: { enabled: false }
     });
 
-    const codingTools = createCodingTools(workspacePath);
-
-    // Load MCP tools from enabled servers
-    const mcpTools = await this.loadMcpTools();
-    const memoryTools = memoryService.buildTools();
-    const allCustomTools = [...codingTools, ...mcpTools, ...memoryTools];
+    const allCustomTools = await this.buildCustomTools(workspacePath);
 
     const { session } = await createAgentSession({
       cwd: workspacePath,

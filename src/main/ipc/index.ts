@@ -7,6 +7,8 @@ import { modelManager } from '../models/ModelManager';
 import { mcpManager } from '../mcp/McpManager';
 import { skillManager } from '../skills/SkillManager';
 import { approvalManager } from '../approval/ApprovalManager';
+import { browserService } from '../browser/BrowserService';
+import { computerService } from '../computer/ComputerService';
 import {
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
@@ -43,7 +45,11 @@ import {
   SKILLS_GET_DETAIL,
   SKILLS_RELOAD,
   TOOL_APPROVAL_RESPONSE,
-  TOOL_APPROVAL_SET_AUTO
+  TOOL_APPROVAL_SET_AUTO,
+  BROWSER_GET_STATUS,
+  BROWSER_SET_VISIBLE,
+  BROWSER_CLOSE,
+  COMPUTER_GET_SCREEN_INFO
 } from '../../shared/ipc-channels';
 import type { AppSettings, ModelConfig, MCPConfig, ToolApprovalDecision } from '../../shared/types';
 
@@ -205,6 +211,28 @@ export function registerIpcHandlers(
   // Tool approval handlers
   ipcMain.handle(TOOL_APPROVAL_SET_AUTO, (_e, enabled: boolean) => {
     approvalManager.setAutoApproveAll(enabled);
+  });
+
+  // Browser (agent-controlled) handlers
+  ipcMain.handle(BROWSER_GET_STATUS, () => {
+    return {
+      open: browserService.isOpen(),
+      visible: browserService.isVisible(),
+      url: browserService.getUrl()
+    };
+  });
+
+  ipcMain.handle(BROWSER_SET_VISIBLE, (_e, visible: boolean) => {
+    browserService.setVisible(visible);
+  });
+
+  ipcMain.handle(BROWSER_CLOSE, async () => {
+    await browserService.close();
+  });
+
+  // Computer use handlers
+  ipcMain.handle(COMPUTER_GET_SCREEN_INFO, () => {
+    return computerService.getScreenInfo();
   });
 
   // Initialize approval manager from persisted settings

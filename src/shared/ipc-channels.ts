@@ -58,3 +58,11 @@ export const SKILLS_RELOAD = 'skills:reload';
 export const TOOL_APPROVAL_REQUEST = 'tool:approvalRequest';
 export const TOOL_APPROVAL_RESPONSE = 'tool:approvalResponse';
 export const TOOL_APPROVAL_SET_AUTO = 'tool:approvalSetAuto';
+
+// Browser (agent-controlled) channels
+export const BROWSER_GET_STATUS = 'browser:getStatus';
+export const BROWSER_SET_VISIBLE = 'browser:setVisible';
+export const BROWSER_CLOSE = 'browser:close';
+
+// Computer use channels
+export const COMPUTER_GET_SCREEN_INFO = 'computer:getScreenInfo';

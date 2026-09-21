@@ -52,7 +52,11 @@ import {
   SKILLS_RELOAD,
   TOOL_APPROVAL_REQUEST,
   TOOL_APPROVAL_RESPONSE,
-  TOOL_APPROVAL_SET_AUTO
+  TOOL_APPROVAL_SET_AUTO,
+  BROWSER_GET_STATUS,
+  BROWSER_SET_VISIBLE,
+  BROWSER_CLOSE,
+  COMPUTER_GET_SCREEN_INFO
 } from '../shared/ipc-channels';
 import type {
   ToolApprovalRequest,
@@ -174,6 +178,16 @@ const electronAPI = {
       ipcRenderer.invoke(TOOL_APPROVAL_RESPONSE, id, decision),
     setAutoApprove: (enabled: boolean) =>
       ipcRenderer.invoke(TOOL_APPROVAL_SET_AUTO, enabled)
+  },
+  browser: {
+    getStatus: () =>
+      ipcRenderer.invoke(BROWSER_GET_STATUS) as Promise<{ open: boolean; visible: boolean; url: string }>,
+    setVisible: (visible: boolean) => ipcRenderer.invoke(BROWSER_SET_VISIBLE, visible),
+    close: () => ipcRenderer.invoke(BROWSER_CLOSE)
+  },
+  computer: {
+    getScreenInfo: () =>
+      ipcRenderer.invoke(COMPUTER_GET_SCREEN_INFO) as Promise<{ width: number; height: number; scaleFactor: number }>
   }
 };
 

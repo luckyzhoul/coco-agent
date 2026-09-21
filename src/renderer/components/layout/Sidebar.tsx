@@ -31,6 +31,11 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   const [searchResults, setSearchResults] = useState<
     { session: SessionInfo; matches: { messageId: string; role: string; snippet: string }[] }[]
   >([]);
+  const [browserStatus, setBrowserStatus] = useState<{
+    open: boolean;
+    visible: boolean;
+    url: string;
+  }>({ open: false, visible: false, url: '' });
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -43,6 +48,27 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     }, 250);
     return () => clearTimeout(timer);
   }, [searchQuery, ipc]);
+
+  // Poll agent-browser status
+  useEffect(() => {
+    const poll = () => {
+      ipc.browser.getStatus().then(setBrowserStatus).catch(() => {});
+    };
+    poll();
+    const interval = setInterval(poll, 2000);
+    return () => clearInterval(interval);
+  }, [ipc]);
+
+  const handleToggleBrowserVisible = async () => {
+    const next = !browserStatus.visible;
+    await ipc.browser.setVisible(next);
+    setBrowserStatus((s) => ({ ...s, visible: next }));
+  };
+
+  const handleCloseBrowser = async () => {
+    await ipc.browser.close();
+    setBrowserStatus({ open: false, visible: false, url: '' });
+  };
 
   useEffect(() => {
     ipc.agent.listSessions().then((s) => setSessions(s));
@@ -290,8 +316,30 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
         </div>
       </div>
 
-      {/* Footer: Settings button */}
-      <div className="border-t border-border p-2">
+      {/* Footer: Browser control + Settings */}
+      <div className="border-t border-border p-2 space-y-1">
+        {browserStatus.open && (
+          <div className="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+            <span className="truncate flex-1 text-muted-foreground" title={browserStatus.url}>
+              Browser active
+            </span>
+            <button
+              onClick={handleToggleBrowserVisible}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title={browserStatus.visible ? 'Hide browser' : 'Show browser'}
+            >
+              {browserStatus.visible ? '🙈' : '👁'}
+            </button>
+            <button
+              onClick={handleCloseBrowser}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="Close browser"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <button
           onClick={onOpenSettings}
           className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
