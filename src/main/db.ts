@@ -51,6 +51,14 @@ CREATE TABLE IF NOT EXISTS recent_workspaces (
   name      TEXT NOT NULL DEFAULT '',
   last_used INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS agents (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL
+);
 `;
 
 let db: DatabaseSync | null = null;

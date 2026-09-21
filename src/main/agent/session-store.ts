@@ -29,6 +29,7 @@ export function listSessions(): SessionInfo[] {
     id: m.id,
     title: m.title,
     workspacePath: m.workspace_path,
+    agentId: m.agent_id,
     createdAt: m.created_at,
     updatedAt: m.updated_at,
     messageCount: m.message_count
@@ -38,14 +39,15 @@ export function listSessions(): SessionInfo[] {
 export function createSessionMeta(
   sessionId: string,
   workspacePath: string,
-  title: string
+  title: string,
+  agentId?: string
 ): void {
   const now = Date.now();
   getDb()
     .prepare(
-      'INSERT INTO sessions (id, title, workspace_path, created_at, updated_at, message_count) VALUES (?, ?, ?, ?, ?, 0)'
+      'INSERT INTO sessions (id, title, workspace_path, agent_id, created_at, updated_at, message_count) VALUES (?, ?, ?, ?, ?, ?, 0)'
     )
-    .run(sessionId, title, workspacePath, now, now);
+    .run(sessionId, title, workspacePath, agentId ?? null, now, now);
 }
 
 export function updateSessionMeta(

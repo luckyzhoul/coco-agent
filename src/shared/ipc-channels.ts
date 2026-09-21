@@ -78,6 +78,16 @@ export const COMPUTER_GET_SCREEN_INFO = 'computer:getScreenInfo';
 export const APP_GET_PATHS = 'app:getPaths';
 export const APP_OPEN_HOME = 'app:openHome';
 
+// Agent channels
+export const AGENTS_LIST = 'agents:list';
+export const AGENTS_CREATE = 'agents:create';
+export const AGENTS_UPDATE = 'agents:update';
+export const AGENTS_DELETE = 'agents:delete';
+export const AGENTS_GET_ACTIVE = 'agents:getActive';
+export const AGENTS_SET_ACTIVE = 'agents:setActive';
+export const AGENTS_GET_PERSONA = 'agents:getPersona';
+export const AGENTS_SET_PERSONA = 'agents:setPersona';
+
 // Auto-update channels
 export const UPDATE_GET_STATUS = 'update:getStatus';
 export const UPDATE_CHECK = 'update:check';

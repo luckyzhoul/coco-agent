@@ -62,6 +62,14 @@ import {
   COMPUTER_GET_SCREEN_INFO,
   APP_GET_PATHS,
   APP_OPEN_HOME,
+  AGENTS_LIST,
+  AGENTS_CREATE,
+  AGENTS_UPDATE,
+  AGENTS_DELETE,
+  AGENTS_GET_ACTIVE,
+  AGENTS_SET_ACTIVE,
+  AGENTS_GET_PERSONA,
+  AGENTS_SET_PERSONA,
   UPDATE_GET_STATUS,
   UPDATE_CHECK,
   UPDATE_DOWNLOAD,
@@ -70,6 +78,9 @@ import {
 } from '../../shared/ipc-channels';
 import type { AppSettings, ModelConfig, MCPConfig, ToolApprovalDecision } from '../../shared/types';
 import { paths } from '../paths';
+import { agentManager } from '../agents/AgentManager';
+import { readPersona, writePersona } from '../agents/persona';
+import { memoryService } from '../memory/MemoryService';
 
 export function registerIpcHandlers(
   ipcMain: IpcMain,
@@ -293,6 +304,46 @@ export function registerIpcHandlers(
   // Computer use handlers
   ipcMain.handle(COMPUTER_GET_SCREEN_INFO, () => {
     return computerService.getScreenInfo();
+  });
+
+  // Agent handlers
+  ipcMain.handle(AGENTS_LIST, () => {
+    return agentManager.list();
+  });
+
+  ipcMain.handle(AGENTS_CREATE, (_e, input: { name: string; description?: string; persona?: string }) => {
+    return agentManager.create(input);
+  });
+
+  ipcMain.handle(AGENTS_UPDATE, (_e, id: string, updates: { name?: string; description?: string }) => {
+    return agentManager.update(id, updates);
+  });
+
+  ipcMain.handle(AGENTS_DELETE, (_e, id: string) => {
+    agentManager.delete(id);
+    memoryService.load(agentManager.getActiveId());
+    return agentManager.list();
+  });
+
+  ipcMain.handle(AGENTS_GET_ACTIVE, () => {
+    return agentManager.getActive();
+  });
+
+  ipcMain.handle(AGENTS_SET_ACTIVE, (_e, id: string) => {
+    agentManager.setActive(id);
+    // Memories are agent-scoped, so reload for the newly active agent.
+    memoryService.load(id);
+    return agentManager.getActive();
+  });
+
+  ipcMain.handle(AGENTS_GET_PERSONA, (_e, id: string) => {
+    return readPersona(id)?.body ?? '';
+  });
+
+  ipcMain.handle(AGENTS_SET_PERSONA, (_e, id: string, body: string) => {
+    const agent = agentManager.get(id);
+    if (!agent) throw new Error(`Agent not found: ${id}`);
+    writePersona(id, { name: agent.name, description: agent.description, body });
   });
 
   // App-level handlers

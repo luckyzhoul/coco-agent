@@ -15,10 +15,19 @@ export interface ToolCall {
   error?: string;
 }
 
+export interface AgentInfo {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface SessionInfo {
   id: string;
   title: string;
   workspacePath: string;
+  agentId: string | null;
   createdAt: number;
   updatedAt: number;
   messageCount: number;
@@ -80,6 +89,9 @@ export interface SkillInfo {
 }
 
 export interface AppSettings {
+  // Agents
+  activeAgentId: string | null;
+
   // Models
   models: ModelConfig[];
   activeModelId: string | null;

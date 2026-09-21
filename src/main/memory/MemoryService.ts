@@ -2,6 +2,7 @@ import { Type } from '@sinclair/typebox';
 import { defineTool } from '@earendil-works/pi-coding-agent';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import { getDb } from '../db';
+import { DEFAULT_AGENT_ID } from '../agents/AgentManager';
 import { Bm25Index } from './Bm25Index';
 import { embeddingClient, cosineSimilarity } from './EmbeddingClient';
 
@@ -41,20 +42,26 @@ export interface MemorySearchHit extends MemoryEntry {
 const SEMANTIC_WEIGHT = 0.7;
 
 export class MemoryService {
+  /** Agent whose memories are currently loaded. */
+  private agentId: string | null = null;
   private entries: MemoryEntry[] = [];
   private index = new Bm25Index();
   private embeddings = new Map<string, number[]>();
 
   constructor() {
-    this.load();
-    this.reindex();
+    this.load(DEFAULT_AGENT_ID);
   }
 
-  private load(): void {
+  /**
+   * Load memories for an agent, replacing whatever is indexed.
+   * Memories are agent-scoped: each agent only sees its own.
+   */
+  load(agentId: string): void {
+    this.agentId = agentId;
     try {
       const rows = getDb()
-        .prepare('SELECT * FROM memories ORDER BY created_at DESC')
-        .all() as unknown as MemoryRow[];
+        .prepare('SELECT * FROM memories WHERE agent_id = ? ORDER BY created_at DESC')
+        .all(agentId) as unknown as MemoryRow[];
       this.entries = rows.map((r) => ({
         id: r.id,
         content: r.content,
@@ -66,18 +73,24 @@ export class MemoryService {
     } catch {
       this.entries = [];
     }
+    this.reindex();
+  }
+
+  getAgentId(): string | null {
+    return this.agentId;
   }
 
   private insertEntry(entry: MemoryEntry): void {
     getDb()
       .prepare(
-        'INSERT INTO memories (id, content, tags, source, tier, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO memories (id, content, tags, source, agent_id, tier, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
       )
       .run(
         entry.id,
         entry.content,
         JSON.stringify(entry.tags),
         entry.source,
+        this.agentId ?? DEFAULT_AGENT_ID,
         'recent',
         entry.createdAt,
         entry.updatedAt

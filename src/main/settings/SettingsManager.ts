@@ -4,6 +4,7 @@ import type { AppSettings, ModelConfig, MCPConfig } from '../../shared/types';
 const SETTINGS_KEY = 'app';
 
 const DEFAULT_SETTINGS: AppSettings = {
+  activeAgentId: null,
   models: [],
   activeModelId: null,
   mcpServers: [],

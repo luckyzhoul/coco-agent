@@ -3,6 +3,7 @@ import { useIpcRenderer } from '../../hooks/useIpcRenderer';
 import { useSessionStore } from '../../stores/useSessionStore';
 import { useChatStore } from '../../stores/useChatStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
+import { useAgentStore } from '../../stores/useAgentStore';
 import type { SessionInfo } from '@shared/types';
 
 interface SidebarProps {
@@ -11,7 +12,7 @@ interface SidebarProps {
 
 export function Sidebar({ onOpenSettings }: SidebarProps) {
   const ipc = useIpcRenderer();
-  const sessions = useSessionStore((s) => s.sessions);
+  const allSessions = useSessionStore((s) => s.sessions);
   const currentWorkspace = useSessionStore((s) => s.currentWorkspace);
   const setSessions = useSessionStore((s) => s.setSessions);
   const setCurrentWorkspace = useSessionStore((s) => s.setCurrentWorkspace);
@@ -23,6 +24,17 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   const skills = useSettingsStore((s) => s.skills);
   const loadMcpServers = useSettingsStore((s) => s.loadMcpServers);
   const loadSkills = useSettingsStore((s) => s.loadSkills);
+  const agents = useAgentStore((s) => s.agents);
+  const activeAgentId = useAgentStore((s) => s.activeAgentId);
+  const loadAgents = useAgentStore((s) => s.loadAgents);
+  const setActiveAgent = useAgentStore((s) => s.setActiveAgent);
+
+  // Sessions are agent-scoped: only show the active agent's.
+  const sessions = activeAgentId
+    ? allSessions.filter((s) => (s.agentId ?? null) === activeAgentId)
+    : allSessions;
+
+  const activeAgent = agents.find((a) => a.id === activeAgentId);
 
   const [isCreating, setIsCreating] = useState(false);
   const [showMcpSection, setShowMcpSection] = useState(true);
@@ -74,9 +86,21 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     ipc.agent.listSessions().then((s) => setSessions(s));
     ipc.workspace.getCurrent().then((ws) => setCurrentWorkspace(ws));
     ipc.workspace.listRecent().then((ws) => setRecentWorkspaces(ws));
+    loadAgents();
     loadMcpServers();
     loadSkills();
-  }, [ipc, setSessions, setCurrentWorkspace, setRecentWorkspaces, loadMcpServers, loadSkills]);
+  }, [ipc, setSessions, setCurrentWorkspace, setRecentWorkspaces, loadAgents, loadMcpServers, loadSkills]);
+
+  const handleSwitchAgent = async (id: string) => {
+    if (id === activeAgentId) return;
+    await setActiveAgent(id);
+    // Sessions are filtered by agent on the client, but the list may have
+    // changed on disk (e.g. a session was created under another agent).
+    const updated = await ipc.agent.listSessions();
+    setSessions(updated);
+    setActiveSession(null);
+    setMessages([]);
+  };
 
   const handleNewSession = async () => {
     let workspace = currentWorkspace;
@@ -136,6 +160,22 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
 
   return (
     <div className="flex h-full w-64 flex-col border-r border-border bg-card">
+      {/* Agent selector */}
+      <div className="border-b border-border p-3">
+        <select
+          value={activeAgentId ?? ''}
+          onChange={(e) => handleSwitchAgent(e.target.value)}
+          title={activeAgent?.description || 'Active agent'}
+          className="w-full bg-background border border-input rounded-md px-2 py-1.5 text-sm cursor-pointer"
+        >
+          {agents.map((agent) => (
+            <option key={agent.id} value={agent.id}>
+              🎭 {agent.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Workspace selector */}
       <div className="border-b border-border p-3">
         <button

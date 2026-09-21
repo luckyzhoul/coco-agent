@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type {
   Message,
   SessionInfo,
+  AgentInfo,
   AgentStatus,
   WorkspaceInfo,
   AppSettings,
@@ -67,6 +68,14 @@ import {
   COMPUTER_GET_SCREEN_INFO,
   APP_GET_PATHS,
   APP_OPEN_HOME,
+  AGENTS_LIST,
+  AGENTS_CREATE,
+  AGENTS_UPDATE,
+  AGENTS_DELETE,
+  AGENTS_GET_ACTIVE,
+  AGENTS_SET_ACTIVE,
+  AGENTS_GET_PERSONA,
+  AGENTS_SET_PERSONA,
   UPDATE_GET_STATUS,
   UPDATE_CHECK,
   UPDATE_DOWNLOAD,
@@ -236,6 +245,22 @@ const electronAPI = {
       ipcRenderer.invoke(BROWSER_GET_STATUS) as Promise<{ open: boolean; visible: boolean; url: string }>,
     setVisible: (visible: boolean) => ipcRenderer.invoke(BROWSER_SET_VISIBLE, visible),
     close: () => ipcRenderer.invoke(BROWSER_CLOSE)
+  },
+  agents: {
+    list: () => ipcRenderer.invoke(AGENTS_LIST) as Promise<AgentInfo[]>,
+    create: (input: { name: string; description?: string; persona?: string }) =>
+      ipcRenderer.invoke(AGENTS_CREATE, input) as Promise<AgentInfo>,
+    update: (id: string, updates: { name?: string; description?: string }) =>
+      ipcRenderer.invoke(AGENTS_UPDATE, id, updates) as Promise<AgentInfo>,
+    delete: (id: string) =>
+      ipcRenderer.invoke(AGENTS_DELETE, id) as Promise<AgentInfo[]>,
+    getActive: () => ipcRenderer.invoke(AGENTS_GET_ACTIVE) as Promise<AgentInfo>,
+    setActive: (id: string) =>
+      ipcRenderer.invoke(AGENTS_SET_ACTIVE, id) as Promise<AgentInfo>,
+    getPersona: (id: string) =>
+      ipcRenderer.invoke(AGENTS_GET_PERSONA, id) as Promise<string>,
+    setPersona: (id: string, body: string) =>
+      ipcRenderer.invoke(AGENTS_SET_PERSONA, id, body) as Promise<void>
   },
   app: {
     getPaths: () =>

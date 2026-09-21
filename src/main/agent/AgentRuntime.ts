@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import {
   createAgentSession,
   createCodingTools,
+  DefaultResourceLoader,
   ModelRuntime,
   SessionManager,
   SettingsManager,
@@ -11,6 +12,8 @@ import {
 } from '@earendil-works/pi-coding-agent';
 import { modelManager } from '../models/ModelManager';
 import { providerIdFor, syncPiModelConfig } from '../models/PiModelConfig';
+import { agentManager } from '../agents/AgentManager';
+import { agentSkillsDir, buildPersonaPrompt } from '../agents/persona';
 import { mcpManager } from '../mcp/McpManager';
 import { buildMcpTools } from '../mcp/McpToolBridge';
 import { memoryService } from '../memory/MemoryService';
@@ -162,9 +165,13 @@ export class AgentRuntime {
     const sessionId = generateSessionId();
     const title = `New Chat ${new Date().toLocaleTimeString()}`;
 
+    // Memories are agent-scoped; make sure the active agent's are loaded.
+    memoryService.load(agentManager.getActiveId());
+
     const piSettingsManager = SettingsManager.inMemory({
       compaction: { enabled: false }
     });
+    const resourceLoader = await this.buildResourceLoader(workspacePath, piSettingsManager);
 
     const allCustomTools = await this.buildCustomTools(workspacePath);
 
@@ -177,6 +184,7 @@ export class AgentRuntime {
       customTools: allCustomTools as any[],
       sessionManager: SessionManager.inMemory(),
       settingsManager: piSettingsManager,
+      resourceLoader,
       modelRuntime: runtime?.modelRuntime,
       model: runtime?.model
     });
@@ -191,10 +199,36 @@ export class AgentRuntime {
       this.handleSessionEvent(event);
     });
 
-    createSessionMeta(sessionId, workspacePath, title);
+    createSessionMeta(sessionId, workspacePath, title, agentManager.getActiveId());
     this.setStatus({ sessionId, state: 'idle' });
 
     return sessionId;
+  }
+
+  /**
+   * Build the Pi resource loader for the active agent.
+   *
+   * The persona is injected via appendSystemPrompt and the agent's own skills
+   * dir via additionalSkillPaths, so switching agents changes both voice and
+   * available skills. Note: when a custom loader is passed, the SDK no longer
+   * calls reload() itself — we must do it.
+   */
+  private async buildResourceLoader(
+    workspacePath: string,
+    piSettingsManager: SettingsManager
+  ): Promise<DefaultResourceLoader> {
+    const agentId = agentManager.getActiveId();
+
+    const loader = new DefaultResourceLoader({
+      cwd: workspacePath,
+      agentDir: PI_RUNTIME_DIR,
+      settingsManager: piSettingsManager,
+      appendSystemPrompt: buildPersonaPrompt(agentId),
+      additionalSkillPaths: [agentSkillsDir(agentId)]
+    });
+
+    await loader.reload();
+    return loader;
   }
 
   async switchSession(sessionId: string): Promise<void> {
@@ -215,6 +249,17 @@ export class AgentRuntime {
       compaction: { enabled: false }
     });
 
+    // A session belongs to an agent; switching to it should switch the persona too.
+    if (meta.agentId && meta.agentId !== agentManager.getActiveId()) {
+      try {
+        agentManager.setActive(meta.agentId);
+      } catch {
+        // Agent may have been deleted; keep the current one.
+      }
+    }
+    memoryService.load(agentManager.getActiveId());
+
+    const resourceLoader = await this.buildResourceLoader(meta.workspacePath, piSettingsManager);
     const allCustomTools = await this.buildCustomTools(meta.workspacePath);
 
     const runtime = await this.resolveModelRuntime();
@@ -224,6 +269,7 @@ export class AgentRuntime {
       customTools: allCustomTools as any[],
       sessionManager: SessionManager.inMemory(),
       settingsManager: piSettingsManager,
+      resourceLoader,
       modelRuntime: runtime?.modelRuntime,
       model: runtime?.model
     });
