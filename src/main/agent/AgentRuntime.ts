@@ -10,6 +10,7 @@ import {
 import { modelManager } from '../models/ModelManager';
 import { mcpManager } from '../mcp/McpManager';
 import { buildMcpTools } from '../mcp/McpToolBridge';
+import { memoryService } from '../memory/MemoryService';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import {
   AGENT_EVENT_MESSAGE,
@@ -112,7 +113,8 @@ export class AgentRuntime {
 
     // Load MCP tools from enabled servers
     const mcpTools = await this.loadMcpTools();
-    const allCustomTools = [...codingTools, ...mcpTools];
+    const memoryTools = memoryService.buildTools();
+    const allCustomTools = [...codingTools, ...mcpTools, ...memoryTools];
 
     const { session } = await createAgentSession({
       cwd: workspacePath,
@@ -161,7 +163,8 @@ export class AgentRuntime {
 
     // Load MCP tools from enabled servers
     const mcpTools = await this.loadMcpTools();
-    const allCustomTools = [...codingTools, ...mcpTools];
+    const memoryTools = memoryService.buildTools();
+    const allCustomTools = [...codingTools, ...mcpTools, ...memoryTools];
 
     const { session } = await createAgentSession({
       cwd: meta.workspacePath,
