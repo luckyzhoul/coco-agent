@@ -4,10 +4,8 @@ import { useSettingsStore } from '../../stores/useSettingsStore';
 interface AppPaths {
   home: string;
   piRuntime: string;
-  settingsFile: string;
-  sessionsDir: string;
+  dbFile: string;
   skillsDir: string;
-  memoryFile: string;
   homeOverridden: boolean;
 }
 
@@ -125,16 +123,11 @@ export function GeneralSettings() {
 
           <div className="text-xs text-muted-foreground space-y-1 pt-1">
             <div>
-              Settings: <code className="bg-muted px-1 rounded">{appPaths?.settingsFile}</code>
-            </div>
-            <div>
-              Sessions: <code className="bg-muted px-1 rounded">{appPaths?.sessionsDir}</code>
+              Database (settings / sessions / memory):{' '}
+              <code className="bg-muted px-1 rounded">{appPaths?.dbFile}</code>
             </div>
             <div>
               Skills: <code className="bg-muted px-1 rounded">{appPaths?.skillsDir}</code>
-            </div>
-            <div>
-              Memory: <code className="bg-muted px-1 rounded">{appPaths?.memoryFile}</code>
             </div>
             <div>
               Pi SDK runtime:{' '}

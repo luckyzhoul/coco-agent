@@ -1,6 +1,7 @@
-import * as fs from 'node:fs';
+import { getDb } from '../db';
 import type { AppSettings, ModelConfig, MCPConfig } from '../../shared/types';
-import { paths, ensureDir, COCO_HOME } from '../paths';
+
+const SETTINGS_KEY = 'app';
 
 const DEFAULT_SETTINGS: AppSettings = {
   models: [],
@@ -16,30 +17,32 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 export class SettingsManager {
   private settings: AppSettings;
-  private filePath: string;
 
   constructor() {
-    ensureDir(COCO_HOME);
-    this.filePath = paths.settingsFile;
     this.settings = this.load();
   }
 
   private load(): AppSettings {
     try {
-      if (fs.existsSync(this.filePath)) {
-        const data = fs.readFileSync(this.filePath, 'utf-8');
-        const parsed = JSON.parse(data);
-        return { ...DEFAULT_SETTINGS, ...parsed };
+      const row = getDb()
+        .prepare('SELECT value FROM settings WHERE key = ?')
+        .get(SETTINGS_KEY) as { value: string } | undefined;
+      if (row?.value) {
+        return { ...DEFAULT_SETTINGS, ...JSON.parse(row.value) };
       }
     } catch {
-      // Corrupted file, use defaults
+      // Corrupted value, use defaults
     }
     return { ...DEFAULT_SETTINGS };
   }
 
   private save(): void {
     try {
-      fs.writeFileSync(this.filePath, JSON.stringify(this.settings, null, 2));
+      getDb()
+        .prepare(
+          'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+        )
+        .run(SETTINGS_KEY, JSON.stringify(this.settings));
     } catch {
       // Non-fatal
     }

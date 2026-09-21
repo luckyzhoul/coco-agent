@@ -300,10 +300,8 @@ export function registerIpcHandlers(
     return {
       home: paths.home,
       piRuntime: paths.piRuntime,
-      settingsFile: paths.settingsFile,
-      sessionsDir: paths.sessionsDir,
+      dbFile: paths.dbFile,
       skillsDir: paths.skillsDir,
-      memoryFile: paths.memoryFile,
       homeOverridden: !!process.env.COCO_HOME?.trim()
     };
   });

@@ -19,7 +19,7 @@
     "test": "jiti scripts/test-bm25.ts && node scripts/test-model-config.mjs"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
+    "@types/node": "^24.13.6",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

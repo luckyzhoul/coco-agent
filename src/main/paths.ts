@@ -42,12 +42,9 @@ export const paths = {
   home: COCO_HOME,
   piRuntime: PI_RUNTIME_DIR,
 
-  settingsFile: path.join(COCO_HOME, 'settings.json'),
-  sessionsDir: path.join(COCO_HOME, 'sessions'),
-  sessionMetaFile: path.join(COCO_HOME, 'sessions', 'meta.json'),
-  skillsDir: path.join(COCO_HOME, 'skills'),
-  memoryFile: path.join(COCO_HOME, 'memory.json'),
-  recentWorkspacesFile: path.join(COCO_HOME, 'recent-workspaces.json')
+  /** Single SQLite database for settings, sessions, memories, workspaces. */
+  dbFile: path.join(COCO_HOME, 'coco.db'),
+  skillsDir: path.join(COCO_HOME, 'skills')
 } as const;
 
 /** Project-scoped skills live inside the user's workspace, not COCO_HOME. */
@@ -75,7 +72,6 @@ export function ensureDir(dir: string): string {
  */
 function bootstrap(): void {
   ensureDir(COCO_HOME);
-  ensureDir(paths.sessionsDir);
   ensureDir(paths.skillsDir);
   ensureDir(PI_RUNTIME_DIR);
   process.env.PI_CODING_AGENT_DIR = PI_RUNTIME_DIR;

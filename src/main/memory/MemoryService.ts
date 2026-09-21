@@ -1,8 +1,7 @@
-import * as fs from 'node:fs';
 import { Type } from '@sinclair/typebox';
 import { defineTool } from '@earendil-works/pi-coding-agent';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
-import { paths, ensureDir, COCO_HOME } from '../paths';
+import { getDb } from '../db';
 import { Bm25Index } from './Bm25Index';
 import { embeddingClient, cosineSimilarity } from './EmbeddingClient';
 
@@ -15,6 +14,24 @@ interface MemoryEntry {
   updatedAt: number;
 }
 
+interface MemoryRow {
+  id: string;
+  content: string;
+  tags: string;
+  source: string;
+  created_at: number;
+  updated_at: number;
+}
+
+function safeParseTags(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((t) => typeof t === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
 export interface MemorySearchHit extends MemoryEntry {
   score: number;
   matchType: 'bm25' | 'semantic' | 'hybrid';
@@ -24,35 +41,47 @@ export interface MemorySearchHit extends MemoryEntry {
 const SEMANTIC_WEIGHT = 0.7;
 
 export class MemoryService {
-  private filePath: string;
   private entries: MemoryEntry[] = [];
   private index = new Bm25Index();
   private embeddings = new Map<string, number[]>();
 
   constructor() {
-    ensureDir(COCO_HOME);
-    this.filePath = paths.memoryFile;
     this.load();
     this.reindex();
   }
 
   private load(): void {
     try {
-      if (fs.existsSync(this.filePath)) {
-        const data = fs.readFileSync(this.filePath, 'utf-8');
-        this.entries = JSON.parse(data);
-      }
+      const rows = getDb()
+        .prepare('SELECT * FROM memories ORDER BY created_at DESC')
+        .all() as unknown as MemoryRow[];
+      this.entries = rows.map((r) => ({
+        id: r.id,
+        content: r.content,
+        tags: safeParseTags(r.tags),
+        source: r.source,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at
+      }));
     } catch {
       this.entries = [];
     }
   }
 
-  private save(): void {
-    try {
-      fs.writeFileSync(this.filePath, JSON.stringify(this.entries, null, 2));
-    } catch {
-      // Non-fatal
-    }
+  private insertEntry(entry: MemoryEntry): void {
+    getDb()
+      .prepare(
+        'INSERT INTO memories (id, content, tags, source, tier, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      )
+      .run(
+        entry.id,
+        entry.content,
+        JSON.stringify(entry.tags),
+        entry.source,
+        'recent',
+        entry.createdAt,
+        entry.updatedAt
+      );
   }
 
   /** BM25 needs a flat text per document; tags are repeated to give them a mild boost. */
@@ -79,7 +108,7 @@ export class MemoryService {
       updatedAt: Date.now()
     };
     this.entries.unshift(entry);
-    this.save();
+    this.insertEntry(entry);
     this.reindex();
     return entry;
   }
@@ -95,9 +124,12 @@ export class MemoryService {
     const idx = this.entries.findIndex((e) => e.id === id);
     if (idx === -1) return undefined;
     this.entries[idx] = { ...this.entries[idx], ...updates, updatedAt: Date.now() };
-    this.save();
+    const e = this.entries[idx];
+    getDb()
+      .prepare('UPDATE memories SET content = ?, tags = ?, updated_at = ? WHERE id = ?')
+      .run(e.content, JSON.stringify(e.tags), e.updatedAt, id);
     this.reindex();
-    return this.entries[idx];
+    return e;
   }
 
   delete(id: string): boolean {
@@ -105,7 +137,7 @@ export class MemoryService {
     if (idx === -1) return false;
     this.entries.splice(idx, 1);
     this.embeddings.delete(id);
-    this.save();
+    getDb().prepare('DELETE FROM memories WHERE id = ?').run(id);
     this.reindex();
     return true;
   }

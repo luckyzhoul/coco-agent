@@ -1,57 +1,38 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { getDb } from '../db';
 import type { Message, SessionInfo } from '../../shared/types';
-import { paths, ensureDir } from '../paths';
 
-function getDataDir(): string {
-  return ensureDir(paths.sessionsDir);
-}
-
-function getSessionFilePath(sessionId: string): string {
-  return path.join(getDataDir(), `${sessionId}.jsonl`);
-}
-
-function getMetaPath(): string {
-  return paths.sessionMetaFile;
-}
-
-interface SessionMeta {
+interface SessionRow {
   id: string;
   title: string;
-  workspacePath: string;
-  createdAt: number;
-  updatedAt: number;
-  messageCount: number;
+  workspace_path: string;
+  agent_id: string | null;
+  created_at: number;
+  updated_at: number;
+  message_count: number;
 }
 
-function loadMeta(): SessionMeta[] {
-  try {
-    const file = getMetaPath();
-    if (fs.existsSync(file)) {
-      return JSON.parse(fs.readFileSync(file, 'utf-8'));
-    }
-  } catch {
-    // Corrupted file, start fresh
-  }
-  return [];
-}
-
-function saveMeta(metas: SessionMeta[]): void {
-  fs.writeFileSync(getMetaPath(), JSON.stringify(metas, null, 2));
+interface MessageRow {
+  id: string;
+  session_id: string;
+  role: string;
+  content: string;
+  timestamp: number;
+  tool_calls: string | null;
 }
 
 export function listSessions(): SessionInfo[] {
-  const metas = loadMeta();
-  return metas
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .map(m => ({
-      id: m.id,
-      title: m.title,
-      workspacePath: m.workspacePath,
-      createdAt: m.createdAt,
-      updatedAt: m.updatedAt,
-      messageCount: m.messageCount
-    }));
+  const rows = getDb()
+    .prepare('SELECT * FROM sessions ORDER BY updated_at DESC')
+    .all() as unknown as SessionRow[];
+
+  return rows.map((m) => ({
+    id: m.id,
+    title: m.title,
+    workspacePath: m.workspace_path,
+    createdAt: m.created_at,
+    updatedAt: m.updated_at,
+    messageCount: m.message_count
+  }));
 }
 
 export function createSessionMeta(
@@ -59,59 +40,69 @@ export function createSessionMeta(
   workspacePath: string,
   title: string
 ): void {
-  const metas = loadMeta();
   const now = Date.now();
-  metas.push({
-    id: sessionId,
-    title,
-    workspacePath,
-    createdAt: now,
-    updatedAt: now,
-    messageCount: 0
-  });
-  saveMeta(metas);
+  getDb()
+    .prepare(
+      'INSERT INTO sessions (id, title, workspace_path, created_at, updated_at, message_count) VALUES (?, ?, ?, ?, ?, 0)'
+    )
+    .run(sessionId, title, workspacePath, now, now);
 }
 
 export function updateSessionMeta(
   sessionId: string,
-  updates: Partial<Pick<SessionMeta, 'title' | 'messageCount'>>
+  updates: Partial<Pick<SessionInfo, 'title' | 'messageCount'>>
 ): void {
-  const metas = loadMeta();
-  const idx = metas.findIndex(m => m.id === sessionId);
-  if (idx === -1) return;
-  metas[idx] = { ...metas[idx], ...updates, updatedAt: Date.now() };
-  saveMeta(metas);
+  const db = getDb();
+
+  if (updates.title !== undefined) {
+    db.prepare('UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?').run(
+      updates.title,
+      Date.now(),
+      sessionId
+    );
+  }
+  if (updates.messageCount !== undefined) {
+    db.prepare(
+      'UPDATE sessions SET message_count = ?, updated_at = ? WHERE id = ?'
+    ).run(updates.messageCount, Date.now(), sessionId);
+  }
 }
 
 export function deleteSession(sessionId: string): void {
-  const metas = loadMeta().filter(m => m.id !== sessionId);
-  saveMeta(metas);
-  const file = getSessionFilePath(sessionId);
-  if (fs.existsSync(file)) {
-    fs.unlinkSync(file);
-  }
+  const db = getDb();
+  db.prepare('DELETE FROM sessions WHERE id = ?').run(sessionId);
+  db.prepare('DELETE FROM messages WHERE session_id = ?').run(sessionId);
 }
 
 export function appendMessage(sessionId: string, message: Message): void {
-  const file = getSessionFilePath(sessionId);
-  fs.appendFileSync(file, JSON.stringify(message) + '\n');
+  getDb()
+    .prepare(
+      'INSERT INTO messages (id, session_id, role, content, timestamp, tool_calls) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    .run(
+      message.id,
+      sessionId,
+      message.role,
+      message.content,
+      message.timestamp,
+      message.toolCalls ? JSON.stringify(message.toolCalls) : null
+    );
 }
 
 export function loadSessionMessages(sessionId: string): Message[] {
-  const file = getSessionFilePath(sessionId);
-  if (!fs.existsSync(file)) return [];
+  const rows = getDb()
+    .prepare(
+      'SELECT * FROM messages WHERE session_id = ? ORDER BY timestamp ASC, rowid ASC'
+    )
+    .all(sessionId) as unknown as MessageRow[];
 
-  const lines = fs.readFileSync(file, 'utf-8').trim().split('\n');
-  const messages: Message[] = [];
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    try {
-      messages.push(JSON.parse(line));
-    } catch {
-      // Skip malformed lines
-    }
-  }
-  return messages;
+  return rows.map((r) => ({
+    id: r.id,
+    role: r.role as Message['role'],
+    content: r.content,
+    timestamp: r.timestamp,
+    toolCalls: r.tool_calls ? JSON.parse(r.tool_calls) : undefined
+  }));
 }
 
 export function generateSessionId(): string {
@@ -132,10 +123,8 @@ export function searchSessions(query: string, limit = 20): SessionSearchResult[]
   for (const session of listSessions()) {
     const matches: { messageId: string; role: string; snippet: string }[] = [];
 
-    // Match against title
     const titleMatch = session.title.toLowerCase().includes(queryLower);
 
-    // Match against message contents
     const messages = loadSessionMessages(session.id);
     for (const msg of messages) {
       const contentLower = msg.content.toLowerCase();

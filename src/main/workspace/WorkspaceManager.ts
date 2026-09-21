@@ -2,7 +2,7 @@ import { dialog } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { WorkspaceInfo } from '../../shared/types';
-import { paths, ensureDir, COCO_HOME } from '../paths';
+import { getDb } from '../db';
 
 const MAX_RECENT = 10;
 
@@ -11,21 +11,15 @@ export class WorkspaceManager {
   private recentWorkspaces: WorkspaceInfo[] = [];
 
   constructor() {
-    ensureDir(COCO_HOME);
     this.loadRecentWorkspaces();
-  }
-
-  private getRecentFilePath(): string {
-    return paths.recentWorkspacesFile;
   }
 
   private loadRecentWorkspaces(): void {
     try {
-      const file = this.getRecentFilePath();
-      if (fs.existsSync(file)) {
-        const data = fs.readFileSync(file, 'utf-8');
-        this.recentWorkspaces = JSON.parse(data);
-      }
+      const rows = getDb()
+        .prepare('SELECT path, name FROM recent_workspaces ORDER BY last_used DESC')
+        .all() as unknown as { path: string; name: string }[];
+      this.recentWorkspaces = rows.map((r) => ({ path: r.path, name: r.name }));
     } catch {
       this.recentWorkspaces = [];
     }
@@ -33,10 +27,15 @@ export class WorkspaceManager {
 
   private saveRecentWorkspaces(): void {
     try {
-      fs.writeFileSync(
-        this.getRecentFilePath(),
-        JSON.stringify(this.recentWorkspaces, null, 2)
+      const db = getDb();
+      const now = Date.now();
+      db.exec('DELETE FROM recent_workspaces');
+      const stmt = db.prepare(
+        'INSERT INTO recent_workspaces (path, name, last_used) VALUES (?, ?, ?)'
       );
+      for (const w of this.recentWorkspaces) {
+        stmt.run(w.path, w.name, now);
+      }
     } catch {
       // Non-fatal
     }

@@ -242,10 +242,8 @@ const electronAPI = {
       ipcRenderer.invoke(APP_GET_PATHS) as Promise<{
         home: string;
         piRuntime: string;
-        settingsFile: string;
-        sessionsDir: string;
+        dbFile: string;
         skillsDir: string;
-        memoryFile: string;
         homeOverridden: boolean;
       }>,
     openHome: () => ipcRenderer.invoke(APP_OPEN_HOME) as Promise<string>
