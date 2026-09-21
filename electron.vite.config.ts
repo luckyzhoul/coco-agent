@@ -6,11 +6,11 @@ export default defineConfig({
   main: {
     build: {
       outDir: 'out/main',
+      externalizeDeps: false,
       rollupOptions: {
         input: {
           index: path.resolve(__dirname, 'src/main/index.ts')
-        },
-        external: []
+        }
       },
       commonjsOptions: {
         include: [/node_modules/]
