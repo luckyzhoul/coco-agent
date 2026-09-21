@@ -3,6 +3,7 @@ import type { BrowserWindow } from 'electron';
 import { workspaceManager } from '../workspace/WorkspaceManager';
 import { agentRuntime } from '../agent/AgentRuntime';
 import { settingsManager } from '../settings/SettingsManager';
+import { modelManager } from '../models/ModelManager';
 import {
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
@@ -17,9 +18,16 @@ import {
   AGENT_GET_STATUS,
   SETTINGS_GET,
   SETTINGS_SET,
-  SETTINGS_RESET
+  SETTINGS_RESET,
+  MODELS_LIST,
+  MODELS_ADD,
+  MODELS_UPDATE,
+  MODELS_DELETE,
+  MODELS_SET_ACTIVE,
+  MODELS_GET_ACTIVE,
+  MODELS_TEST
 } from '../../shared/ipc-channels';
-import type { AppSettings } from '../../shared/types';
+import type { AppSettings, ModelConfig } from '../../shared/types';
 
 export function registerIpcHandlers(
   ipcMain: IpcMain,
@@ -85,5 +93,34 @@ export function registerIpcHandlers(
 
   ipcMain.handle(SETTINGS_RESET, () => {
     return settingsManager.reset();
+  });
+
+  // Model handlers
+  ipcMain.handle(MODELS_LIST, () => {
+    return modelManager.list();
+  });
+
+  ipcMain.handle(MODELS_ADD, (_e, model: Omit<ModelConfig, 'id'>) => {
+    return modelManager.add(model);
+  });
+
+  ipcMain.handle(MODELS_UPDATE, (_e, id: string, updates: Partial<ModelConfig>) => {
+    return modelManager.update(id, updates);
+  });
+
+  ipcMain.handle(MODELS_DELETE, (_e, id: string) => {
+    return modelManager.delete(id);
+  });
+
+  ipcMain.handle(MODELS_SET_ACTIVE, (_e, id: string) => {
+    modelManager.setActive(id);
+  });
+
+  ipcMain.handle(MODELS_GET_ACTIVE, () => {
+    return modelManager.getActive();
+  });
+
+  ipcMain.handle(MODELS_TEST, (_e, id: string) => {
+    return modelManager.testConnection(id);
   });
 }

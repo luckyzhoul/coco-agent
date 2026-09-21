@@ -7,6 +7,7 @@ import {
   type AgentSession,
   type AgentSessionEvent
 } from '@earendil-works/pi-coding-agent';
+import { modelManager } from '../models/ModelManager';
 import {
   AGENT_EVENT_MESSAGE,
   AGENT_EVENT_TOOL_CALL,
@@ -50,6 +51,15 @@ export class AgentRuntime {
     this.emit(AGENT_EVENT_STATUS, this.status);
   }
 
+  private applyModelEnvVars(): void {
+    const envVars = modelManager.getModelEnvVars();
+    for (const [key, value] of Object.entries(envVars)) {
+      if (value) {
+        process.env[key] = value;
+      }
+    }
+  }
+
   async newSession(workspacePath: string): Promise<string> {
     // Clean up previous session
     if (this.unsubscriber) {
@@ -60,7 +70,10 @@ export class AgentRuntime {
     const sessionId = generateSessionId();
     const title = `New Chat ${new Date().toLocaleTimeString()}`;
 
-    const settingsManager = SettingsManager.inMemory({
+    // Apply active model configuration via environment variables
+    this.applyModelEnvVars();
+
+    const piSettingsManager = SettingsManager.inMemory({
       compaction: { enabled: false }
     });
 
@@ -70,7 +83,7 @@ export class AgentRuntime {
       cwd: workspacePath,
       customTools: codingTools,
       sessionManager: SessionManager.inMemory(),
-      settingsManager
+      settingsManager: piSettingsManager
     });
 
     this.activeSession = session;
@@ -102,7 +115,10 @@ export class AgentRuntime {
       this.unsubscriber = null;
     }
 
-    const settingsManager = SettingsManager.inMemory({
+    // Apply active model configuration via environment variables
+    this.applyModelEnvVars();
+
+    const piSettingsManager = SettingsManager.inMemory({
       compaction: { enabled: false }
     });
 
@@ -112,7 +128,7 @@ export class AgentRuntime {
       cwd: meta.workspacePath,
       customTools: codingTools,
       sessionManager: SessionManager.inMemory(),
-      settingsManager
+      settingsManager: piSettingsManager
     });
 
     this.activeSession = session;
