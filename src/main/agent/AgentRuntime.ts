@@ -8,6 +8,9 @@ import {
   type AgentSessionEvent
 } from '@earendil-works/pi-coding-agent';
 import { modelManager } from '../models/ModelManager';
+import { mcpManager } from '../mcp/McpManager';
+import { buildMcpTools } from '../mcp/McpToolBridge';
+import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import {
   AGENT_EVENT_MESSAGE,
   AGENT_EVENT_TOOL_CALL,
@@ -60,6 +63,34 @@ export class AgentRuntime {
     }
   }
 
+  private async loadMcpTools(): Promise<ToolDefinition[]> {
+    const tools: ToolDefinition[] = [];
+    const mcpConfigs = mcpManager.list();
+
+    for (const config of mcpConfigs) {
+      if (!config.enabled) continue;
+
+      try {
+        let server = mcpManager.getServer(config.id);
+
+        if (!server || !server.running) {
+          await mcpManager.start(config.id);
+          server = mcpManager.getServer(config.id);
+        }
+
+        if (server) {
+          const mcpTools = server.getTools();
+          const piTools = buildMcpTools(server, config.id, mcpTools);
+          tools.push(...piTools);
+        }
+      } catch (err) {
+        console.error(`Failed to load MCP tools for ${config.name}:`, err);
+      }
+    }
+
+    return tools;
+  }
+
   async newSession(workspacePath: string): Promise<string> {
     // Clean up previous session
     if (this.unsubscriber) {
@@ -79,9 +110,13 @@ export class AgentRuntime {
 
     const codingTools = createCodingTools(workspacePath);
 
+    // Load MCP tools from enabled servers
+    const mcpTools = await this.loadMcpTools();
+    const allCustomTools = [...codingTools, ...mcpTools];
+
     const { session } = await createAgentSession({
       cwd: workspacePath,
-      customTools: codingTools,
+      customTools: allCustomTools as any[],
       sessionManager: SessionManager.inMemory(),
       settingsManager: piSettingsManager
     });
@@ -124,9 +159,13 @@ export class AgentRuntime {
 
     const codingTools = createCodingTools(meta.workspacePath);
 
+    // Load MCP tools from enabled servers
+    const mcpTools = await this.loadMcpTools();
+    const allCustomTools = [...codingTools, ...mcpTools];
+
     const { session } = await createAgentSession({
       cwd: meta.workspacePath,
-      customTools: codingTools,
+      customTools: allCustomTools as any[],
       sessionManager: SessionManager.inMemory(),
       settingsManager: piSettingsManager
     });

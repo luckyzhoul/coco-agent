@@ -12,6 +12,10 @@ export class McpManager {
     this.mainWindow = window;
   }
 
+  getServer(id: string): McpServer | undefined {
+    return this.servers.get(id);
+  }
+
   private emitStatusChange(id: string): void {
     const server = this.servers.get(id);
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {

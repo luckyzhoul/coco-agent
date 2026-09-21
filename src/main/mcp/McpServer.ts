@@ -142,6 +142,32 @@ export class McpServer {
     await this.start();
   }
 
+  async callTool(name: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<unknown> {
+    let aborted = false;
+
+    const abortHandler = () => {
+      aborted = true;
+      this.sendNotification('notifications/cancelled', { reason: 'user_cancelled' });
+    };
+
+    if (signal?.aborted) {
+      abortHandler();
+      throw new Error('Tool call cancelled');
+    }
+
+    signal?.addEventListener('abort', abortHandler, { once: true });
+
+    try {
+      const result = await this.sendRequest('tools/call', { name, arguments: args });
+      if (aborted) {
+        throw new Error('Tool call cancelled');
+      }
+      return result;
+    } finally {
+      signal?.removeEventListener('abort', abortHandler);
+    }
+  }
+
   private async initialize(): Promise<void> {
     const result = await this.sendRequest('initialize', {
       protocolVersion: '2024-11-05',

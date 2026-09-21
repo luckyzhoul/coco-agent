@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "^0.85.1",
+    "@sinclair/typebox": "^0.34.52",
     "zustand": "^5.0.15"
   }
 }
