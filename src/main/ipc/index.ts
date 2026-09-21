@@ -19,6 +19,7 @@ import {
   AGENT_LIST_SESSIONS,
   AGENT_GET_SESSION_MESSAGES,
   AGENT_GET_STATUS,
+  AGENT_SEARCH_SESSIONS,
   SETTINGS_GET,
   SETTINGS_SET,
   SETTINGS_RESET,
@@ -88,6 +89,10 @@ export function registerIpcHandlers(
 
   ipcMain.handle(AGENT_GET_STATUS, () => {
     return agentRuntime.getStatus();
+  });
+
+  ipcMain.handle(AGENT_SEARCH_SESSIONS, (_e, query: string) => {
+    return agentRuntime.searchSessions(query);
   });
 
   ipcMain.handle(AGENT_SEND_MESSAGE, async (_e, content: string) => {

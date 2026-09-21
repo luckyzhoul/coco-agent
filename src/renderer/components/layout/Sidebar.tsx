@@ -27,6 +27,22 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [showMcpSection, setShowMcpSection] = useState(true);
   const [showSkillsSection, setShowSkillsSection] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<
+    { session: SessionInfo; matches: { messageId: string; role: string; snippet: string }[] }[]
+  >([]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!query) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      ipc.agent.searchSessions(query).then(setSearchResults);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery, ipc]);
 
   useEffect(() => {
     ipc.agent.listSessions().then((s) => setSessions(s));
@@ -127,8 +143,48 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
           <div className="mb-2 px-2 text-xs font-medium text-muted-foreground">
             Sessions
           </div>
+
+          {/* Search input */}
+          <div className="px-1 mb-2">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search sessions..."
+              className="w-full bg-background border border-input rounded-md px-2 py-1 text-xs outline-none placeholder:text-muted-foreground/60 focus:border-primary/50"
+            />
+          </div>
+
           <div className="space-y-1">
-            {sessions.length === 0 ? (
+            {searchQuery.trim() ? (
+              searchResults.length === 0 ? (
+                <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                  No matches
+                </div>
+              ) : (
+                searchResults.map((result) => (
+                  <button
+                    key={result.session.id}
+                    onClick={() => handleSwitchSession(result.session)}
+                    className={`w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+                      result.session.id === activeSessionId
+                        ? 'bg-accent text-foreground'
+                        : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                    }`}
+                  >
+                    <div className="truncate font-medium">{result.session.title}</div>
+                    {result.matches.map((m) => (
+                      <div
+                        key={m.messageId}
+                        className="truncate text-xs text-muted-foreground/80 mt-0.5"
+                      >
+                        {m.snippet}
+                      </div>
+                    ))}
+                  </button>
+                ))
+              )
+            ) : sessions.length === 0 ? (
               <div className="px-2 py-4 text-center text-xs text-muted-foreground">
                 No sessions yet
               </div>

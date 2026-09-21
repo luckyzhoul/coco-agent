@@ -18,6 +18,7 @@ import {
   AGENT_LIST_SESSIONS,
   AGENT_GET_SESSION_MESSAGES,
   AGENT_GET_STATUS,
+  AGENT_SEARCH_SESSIONS,
   AGENT_EVENT_MESSAGE,
   AGENT_EVENT_TOOL_CALL,
   AGENT_EVENT_TOOL_RESULT,
@@ -74,7 +75,11 @@ const electronAPI = {
     getSessionMessages: (sessionId: string) =>
       ipcRenderer.invoke(AGENT_GET_SESSION_MESSAGES, sessionId) as Promise<Message[]>,
     getStatus: () =>
-      ipcRenderer.invoke(AGENT_GET_STATUS) as Promise<AgentStatus>
+      ipcRenderer.invoke(AGENT_GET_STATUS) as Promise<AgentStatus>,
+    searchSessions: (query: string) =>
+      ipcRenderer.invoke(AGENT_SEARCH_SESSIONS, query) as Promise<
+        { session: SessionInfo; matches: { messageId: string; role: string; snippet: string }[] }[]
+      >
   },
   workspace: {
     select: () =>

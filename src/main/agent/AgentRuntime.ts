@@ -28,7 +28,9 @@ import {
   deleteSession as deleteSessionFromStore,
   appendMessage,
   loadSessionMessages,
-  generateSessionId
+  generateSessionId,
+  searchSessions,
+  type SessionSearchResult
 } from './session-store';
 
 export class AgentRuntime {
@@ -207,6 +209,10 @@ export class AgentRuntime {
 
   getSessionMessages(sessionId: string): Message[] {
     return loadSessionMessages(sessionId);
+  }
+
+  searchSessions(query: string): SessionSearchResult[] {
+    return searchSessions(query);
   }
 
   getStatus(): AgentStatus {

@@ -121,3 +121,46 @@ export function loadSessionMessages(sessionId: string): Message[] {
 export function generateSessionId(): string {
   return `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
+
+export interface SessionSearchResult {
+  session: SessionInfo;
+  matches: { messageId: string; role: string; snippet: string }[];
+}
+
+export function searchSessions(query: string, limit = 20): SessionSearchResult[] {
+  const queryLower = query.toLowerCase().trim();
+  if (!queryLower) return [];
+
+  const results: SessionSearchResult[] = [];
+
+  for (const session of listSessions()) {
+    const matches: { messageId: string; role: string; snippet: string }[] = [];
+
+    // Match against title
+    const titleMatch = session.title.toLowerCase().includes(queryLower);
+
+    // Match against message contents
+    const messages = loadSessionMessages(session.id);
+    for (const msg of messages) {
+      const contentLower = msg.content.toLowerCase();
+      const idx = contentLower.indexOf(queryLower);
+      if (idx !== -1) {
+        const start = Math.max(0, idx - 40);
+        const end = Math.min(msg.content.length, idx + queryLower.length + 40);
+        const snippet =
+          (start > 0 ? '...' : '') +
+          msg.content.slice(start, end) +
+          (end < msg.content.length ? '...' : '');
+        matches.push({ messageId: msg.id, role: msg.role, snippet });
+        if (matches.length >= 3) break;
+      }
+    }
+
+    if (titleMatch || matches.length > 0) {
+      results.push({ session, matches });
+      if (results.length >= limit) break;
+    }
+  }
+
+  return results;
+}
