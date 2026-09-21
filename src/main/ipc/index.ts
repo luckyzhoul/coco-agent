@@ -2,6 +2,7 @@ import type { IpcMain } from 'electron';
 import type { BrowserWindow } from 'electron';
 import { workspaceManager } from '../workspace/WorkspaceManager';
 import { agentRuntime } from '../agent/AgentRuntime';
+import { settingsManager } from '../settings/SettingsManager';
 import {
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
@@ -13,8 +14,12 @@ import {
   AGENT_DELETE_SESSION,
   AGENT_LIST_SESSIONS,
   AGENT_GET_SESSION_MESSAGES,
-  AGENT_GET_STATUS
+  AGENT_GET_STATUS,
+  SETTINGS_GET,
+  SETTINGS_SET,
+  SETTINGS_RESET
 } from '../../shared/ipc-channels';
+import type { AppSettings } from '../../shared/types';
 
 export function registerIpcHandlers(
   ipcMain: IpcMain,
@@ -67,5 +72,18 @@ export function registerIpcHandlers(
 
   ipcMain.handle(AGENT_ABORT, async () => {
     await agentRuntime.abort();
+  });
+
+  // Settings handlers
+  ipcMain.handle(SETTINGS_GET, () => {
+    return settingsManager.get();
+  });
+
+  ipcMain.handle(SETTINGS_SET, (_e, partial: Partial<AppSettings>) => {
+    return settingsManager.set(partial);
+  });
+
+  ipcMain.handle(SETTINGS_RESET, () => {
+    return settingsManager.reset();
   });
 }

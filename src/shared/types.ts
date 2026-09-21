@@ -34,3 +34,53 @@ export interface WorkspaceInfo {
   path: string;
   name: string;
 }
+
+// Model & Provider types
+export type ModelProvider = 'openai-compatible' | 'anthropic' | 'ollama' | 'ark';
+
+export interface ModelConfig {
+  id: string;
+  name: string;
+  provider: ModelProvider;
+  model: string;
+  baseUrl?: string;
+  apiKey?: string;
+  thinkingLevel?: 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+  isDefault?: boolean;
+}
+
+export interface MCPConfig {
+  id: string;
+  name: string;
+  type: 'stdio' | 'sse' | 'streamable-http';
+  command?: string;
+  args?: string[];
+  url?: string;
+  enabled: boolean;
+  env?: Record<string, string>;
+}
+
+export interface SkillInfo {
+  name: string;
+  description: string;
+  path: string;
+  source: 'built-in' | 'global' | 'project';
+  loaded: boolean;
+}
+
+export interface AppSettings {
+  // Models
+  models: ModelConfig[];
+  activeModelId: string | null;
+
+  // MCP
+  mcpServers: MCPConfig[];
+
+  // Appearance
+  theme: 'dark' | 'light' | 'system';
+  fontSize: number;
+
+  // Behavior
+  autoApproveTools: boolean;
+  defaultThinkingLevel: string;
+}

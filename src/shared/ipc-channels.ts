@@ -19,3 +19,36 @@ export const AGENT_EVENT_ERROR = 'agent:event:error';
 export const WORKSPACE_SELECT = 'workspace:select';
 export const WORKSPACE_GET_CURRENT = 'workspace:getCurrent';
 export const WORKSPACE_LIST_RECENT = 'workspace:listRecent';
+
+// Settings channels
+export const SETTINGS_GET = 'settings:get';
+export const SETTINGS_SET = 'settings:set';
+export const SETTINGS_RESET = 'settings:reset';
+
+// Model channels
+export const MODELS_LIST = 'models:list';
+export const MODELS_ADD = 'models:add';
+export const MODELS_UPDATE = 'models:update';
+export const MODELS_DELETE = 'models:delete';
+export const MODELS_SET_ACTIVE = 'models:setActive';
+export const MODELS_GET_ACTIVE = 'models:getActive';
+export const MODELS_TEST = 'models:test';
+
+// MCP channels
+export const MCP_LIST = 'mcp:list';
+export const MCP_ADD = 'mcp:add';
+export const MCP_UPDATE = 'mcp:update';
+export const MCP_DELETE = 'mcp:delete';
+export const MCP_START = 'mcp:start';
+export const MCP_STOP = 'mcp:stop';
+export const MCP_RESTART = 'mcp:restart';
+export const MCP_GET_STATUS = 'mcp:getStatus';
+export const MCP_LIST_TOOLS = 'mcp:listTools';
+
+// MCP event channels
+export const MCP_EVENT_STATUS_CHANGED = 'mcp:event:statusChanged';
+
+// Skills channels
+export const SKILLS_LIST = 'skills:list';
+export const SKILLS_GET_DETAIL = 'skills:getDetail';
+export const SKILLS_RELOAD = 'skills:reload';

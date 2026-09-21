@@ -1,5 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Message, SessionInfo, AgentStatus, WorkspaceInfo } from '../shared/types';
+import type {
+  Message,
+  SessionInfo,
+  AgentStatus,
+  WorkspaceInfo,
+  AppSettings,
+  ModelConfig,
+  MCPConfig,
+  SkillInfo
+} from '../shared/types';
 import {
   AGENT_SEND_MESSAGE,
   AGENT_ABORT,
@@ -16,7 +25,30 @@ import {
   AGENT_EVENT_ERROR,
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
-  WORKSPACE_LIST_RECENT
+  WORKSPACE_LIST_RECENT,
+  SETTINGS_GET,
+  SETTINGS_SET,
+  SETTINGS_RESET,
+  MODELS_LIST,
+  MODELS_ADD,
+  MODELS_UPDATE,
+  MODELS_DELETE,
+  MODELS_SET_ACTIVE,
+  MODELS_GET_ACTIVE,
+  MODELS_TEST,
+  MCP_LIST,
+  MCP_ADD,
+  MCP_UPDATE,
+  MCP_DELETE,
+  MCP_START,
+  MCP_STOP,
+  MCP_RESTART,
+  MCP_GET_STATUS,
+  MCP_LIST_TOOLS,
+  MCP_EVENT_STATUS_CHANGED,
+  SKILLS_LIST,
+  SKILLS_GET_DETAIL,
+  SKILLS_RELOAD
 } from '../shared/ipc-channels';
 
 const electronAPI = {
@@ -45,6 +77,46 @@ const electronAPI = {
     listRecent: () =>
       ipcRenderer.invoke(WORKSPACE_LIST_RECENT) as Promise<WorkspaceInfo[]>
   },
+  settings: {
+    get: () => ipcRenderer.invoke(SETTINGS_GET) as Promise<AppSettings>,
+    set: (partial: Partial<AppSettings>) =>
+      ipcRenderer.invoke(SETTINGS_SET, partial) as Promise<AppSettings>,
+    reset: () => ipcRenderer.invoke(SETTINGS_RESET) as Promise<AppSettings>
+  },
+  models: {
+    list: () => ipcRenderer.invoke(MODELS_LIST) as Promise<ModelConfig[]>,
+    add: (model: ModelConfig) =>
+      ipcRenderer.invoke(MODELS_ADD, model) as Promise<ModelConfig[]>,
+    update: (id: string, updates: Partial<ModelConfig>) =>
+      ipcRenderer.invoke(MODELS_UPDATE, id, updates) as Promise<ModelConfig[]>,
+    delete: (id: string) =>
+      ipcRenderer.invoke(MODELS_DELETE, id) as Promise<ModelConfig[]>,
+    setActive: (id: string) => ipcRenderer.invoke(MODELS_SET_ACTIVE, id),
+    getActive: () => ipcRenderer.invoke(MODELS_GET_ACTIVE) as Promise<ModelConfig | null>,
+    test: (id: string) => ipcRenderer.invoke(MODELS_TEST, id) as Promise<boolean>
+  },
+  mcp: {
+    list: () => ipcRenderer.invoke(MCP_LIST) as Promise<MCPConfig[]>,
+    add: (server: MCPConfig) =>
+      ipcRenderer.invoke(MCP_ADD, server) as Promise<MCPConfig[]>,
+    update: (id: string, updates: Partial<MCPConfig>) =>
+      ipcRenderer.invoke(MCP_UPDATE, id, updates) as Promise<MCPConfig[]>,
+    delete: (id: string) =>
+      ipcRenderer.invoke(MCP_DELETE, id) as Promise<MCPConfig[]>,
+    start: (id: string) => ipcRenderer.invoke(MCP_START, id),
+    stop: (id: string) => ipcRenderer.invoke(MCP_STOP, id),
+    restart: (id: string) => ipcRenderer.invoke(MCP_RESTART, id),
+    getStatus: (id: string) =>
+      ipcRenderer.invoke(MCP_GET_STATUS, id) as Promise<{ running: boolean; error?: string }>,
+    listTools: (id: string) =>
+      ipcRenderer.invoke(MCP_LIST_TOOLS, id) as Promise<unknown[]>
+  },
+  skills: {
+    list: () => ipcRenderer.invoke(SKILLS_LIST) as Promise<SkillInfo[]>,
+    getDetail: (name: string) =>
+      ipcRenderer.invoke(SKILLS_GET_DETAIL, name) as Promise<SkillInfo | null>,
+    reload: () => ipcRenderer.invoke(SKILLS_RELOAD) as Promise<SkillInfo[]>
+  },
   on: {
     agentMessage: (callback: (msg: Message) => void) => {
       const listener = (_: unknown, msg: Message) => callback(msg);
@@ -72,6 +144,12 @@ const electronAPI = {
       const listener = (_: unknown, error: string) => callback(error);
       ipcRenderer.on(AGENT_EVENT_ERROR, listener);
       return () => ipcRenderer.removeListener(AGENT_EVENT_ERROR, listener);
+    },
+    mcpStatusChanged: (callback: (data: { id: string; running: boolean; error?: string }) => void) => {
+      const listener = (_: unknown, data: unknown) =>
+        callback(data as { id: string; running: boolean; error?: string });
+      ipcRenderer.on(MCP_EVENT_STATUS_CHANGED, listener);
+      return () => ipcRenderer.removeListener(MCP_EVENT_STATUS_CHANGED, listener);
     }
   }
 };
