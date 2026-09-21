@@ -73,3 +73,11 @@ export const BROWSER_CLOSE = 'browser:close';
 
 // Computer use channels
 export const COMPUTER_GET_SCREEN_INFO = 'computer:getScreenInfo';
+
+// Auto-update channels
+export const UPDATE_GET_STATUS = 'update:getStatus';
+export const UPDATE_CHECK = 'update:check';
+export const UPDATE_DOWNLOAD = 'update:download';
+export const UPDATE_QUIT_AND_INSTALL = 'update:quitAndInstall';
+export const UPDATE_SET_FEED = 'update:setFeed';
+export const UPDATE_EVENT = 'update:event';

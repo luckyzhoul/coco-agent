@@ -46,3 +46,10 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
+
+# Update feed. Releases are read from GitHub Releases by electron-updater.
+# A generic/self-hosted feed can be set at runtime in Settings → General.
+publish:
+  provider: github
+  owner: luckyzhoul
+  repo: coco-agent

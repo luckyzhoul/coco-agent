@@ -4,18 +4,20 @@ import { ModelsSettings } from './ModelsSettings';
 import { McpSettings } from './McpSettings';
 import { SkillsSettings } from './SkillsSettings';
 import { GeneralSettings } from './GeneralSettings';
+import { UpdateSettings } from './UpdateSettings';
 
 interface SettingsPanelProps {
   onClose: () => void;
 }
 
-type TabId = 'general' | 'models' | 'mcp' | 'skills';
+type TabId = 'general' | 'models' | 'mcp' | 'skills' | 'updates';
 
 const tabs: { id: TabId; label: string; icon: string }[] = [
   { id: 'general', label: 'General', icon: '⚙️' },
   { id: 'models', label: 'Models', icon: '🧠' },
   { id: 'mcp', label: 'MCP Servers', icon: '🔌' },
-  { id: 'skills', label: 'Skills', icon: '🧩' }
+  { id: 'skills', label: 'Skills', icon: '🧩' },
+  { id: 'updates', label: 'Updates', icon: '⬆️' }
 ];
 
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
@@ -72,6 +74,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 {activeTab === 'models' && <ModelsSettings />}
                 {activeTab === 'mcp' && <McpSettings />}
                 {activeTab === 'skills' && <SkillsSettings />}
+                {activeTab === 'updates' && <UpdateSettings />}
               </>
             )}
           </div>

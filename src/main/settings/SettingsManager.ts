@@ -13,7 +13,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   fontSize: 14,
   autoApproveTools: false,
   defaultThinkingLevel: 'medium',
-  skillRegistryUrl: ''
+  skillRegistryUrl: '',
+  updateFeedUrl: ''
 };
 
 export class SettingsManager {

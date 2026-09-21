@@ -63,11 +63,18 @@ import {
   BROWSER_GET_STATUS,
   BROWSER_SET_VISIBLE,
   BROWSER_CLOSE,
-  COMPUTER_GET_SCREEN_INFO
+  COMPUTER_GET_SCREEN_INFO,
+  UPDATE_GET_STATUS,
+  UPDATE_CHECK,
+  UPDATE_DOWNLOAD,
+  UPDATE_QUIT_AND_INSTALL,
+  UPDATE_SET_FEED,
+  UPDATE_EVENT
 } from '../shared/ipc-channels';
 import type {
   ToolApprovalRequest,
-  ToolApprovalDecision
+  ToolApprovalDecision,
+  UpdateStatus
 } from '../shared/types';
 
 const electronAPI = {
@@ -208,6 +215,11 @@ const electronAPI = {
       const listener = (_: unknown, request: ToolApprovalRequest) => callback(request);
       ipcRenderer.on(TOOL_APPROVAL_REQUEST, listener);
       return () => ipcRenderer.removeListener(TOOL_APPROVAL_REQUEST, listener);
+    },
+    updateStatus: (callback: (status: UpdateStatus) => void) => {
+      const listener = (_: unknown, status: UpdateStatus) => callback(status);
+      ipcRenderer.on(UPDATE_EVENT, listener);
+      return () => ipcRenderer.removeListener(UPDATE_EVENT, listener);
     }
   },
   toolApproval: {
@@ -221,6 +233,13 @@ const electronAPI = {
       ipcRenderer.invoke(BROWSER_GET_STATUS) as Promise<{ open: boolean; visible: boolean; url: string }>,
     setVisible: (visible: boolean) => ipcRenderer.invoke(BROWSER_SET_VISIBLE, visible),
     close: () => ipcRenderer.invoke(BROWSER_CLOSE)
+  },
+  update: {
+    getStatus: () => ipcRenderer.invoke(UPDATE_GET_STATUS) as Promise<UpdateStatus>,
+    check: () => ipcRenderer.invoke(UPDATE_CHECK) as Promise<UpdateStatus>,
+    download: () => ipcRenderer.invoke(UPDATE_DOWNLOAD) as Promise<UpdateStatus>,
+    quitAndInstall: () => ipcRenderer.invoke(UPDATE_QUIT_AND_INSTALL),
+    setFeed: (url: string) => ipcRenderer.invoke(UPDATE_SET_FEED, url)
   },
   computer: {
     getScreenInfo: () =>

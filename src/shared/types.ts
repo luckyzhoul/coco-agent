@@ -88,6 +88,9 @@ export interface AppSettings {
 
   // Skill registry (remote catalog JSON URL)
   skillRegistryUrl: string;
+
+  // Auto-update (generic feed URL; empty = use the bundled GitHub feed)
+  updateFeedUrl: string;
 }
 
 export interface ToolApprovalRequest {
@@ -99,3 +102,24 @@ export interface ToolApprovalRequest {
 }
 
 export type ToolApprovalDecision = 'approve' | 'deny' | 'approve_all';
+
+export type UpdateState =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'up-to-date'
+  | 'downloading'
+  | 'downloaded'
+  | 'error'
+  | 'unavailable';
+
+export interface UpdateStatus {
+  state: UpdateState;
+  currentVersion: string;
+  packaged: boolean;
+  feedConfigured: boolean;
+  feedUrl?: string;
+  version?: string;
+  percent?: number;
+  message?: string;
+}

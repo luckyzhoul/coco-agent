@@ -11,6 +11,7 @@ import { skillInstaller } from '../skills/SkillInstaller';
 import { approvalManager } from '../approval/ApprovalManager';
 import { browserService } from '../browser/BrowserService';
 import { computerService } from '../computer/ComputerService';
+import { updateManager } from '../update/UpdateManager';
 import {
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
@@ -58,7 +59,12 @@ import {
   BROWSER_GET_STATUS,
   BROWSER_SET_VISIBLE,
   BROWSER_CLOSE,
-  COMPUTER_GET_SCREEN_INFO
+  COMPUTER_GET_SCREEN_INFO,
+  UPDATE_GET_STATUS,
+  UPDATE_CHECK,
+  UPDATE_DOWNLOAD,
+  UPDATE_QUIT_AND_INSTALL,
+  UPDATE_SET_FEED
 } from '../../shared/ipc-channels';
 import type { AppSettings, ModelConfig, MCPConfig, ToolApprovalDecision } from '../../shared/types';
 
@@ -286,6 +292,35 @@ export function registerIpcHandlers(
     return computerService.getScreenInfo();
   });
 
+  // Auto-update handlers
+  ipcMain.handle(UPDATE_GET_STATUS, () => {
+    return updateManager.getStatus();
+  });
+
+  ipcMain.handle(UPDATE_CHECK, async () => {
+    updateManager.setMainWindow(getMainWindow());
+    return updateManager.checkForUpdates();
+  });
+
+  ipcMain.handle(UPDATE_DOWNLOAD, async () => {
+    return updateManager.downloadUpdate();
+  });
+
+  ipcMain.handle(UPDATE_QUIT_AND_INSTALL, () => {
+    updateManager.quitAndInstall();
+  });
+
+  ipcMain.handle(UPDATE_SET_FEED, (_e, url: string) => {
+    updateManager.setFeedUrl(url);
+  });
+
   // Initialize approval manager from persisted settings
   approvalManager.setAutoApproveAll(settingsManager.get().autoApproveTools);
+
+  // Initialize updater (inert unless packaged)
+  updateManager.setMainWindow(getMainWindow());
+  updateManager.init().then(() => {
+    const feedUrl = settingsManager.get().updateFeedUrl;
+    if (feedUrl) updateManager.setFeedUrl(feedUrl);
+  });
 }
