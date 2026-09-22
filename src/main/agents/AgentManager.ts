@@ -1,9 +1,11 @@
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { getDb } from '../db';
 import { settingsManager } from '../settings/SettingsManager';
 import { agentDir, agentSkillsDir, readPersona, writePersona } from './persona';
-import { ensureDir } from '../paths';
-import type { AgentInfo } from '../../shared/types';
+import { ensureDir, paths } from '../paths';
+import { skillManager } from '../skills/SkillManager';
+import type { AgentInfo, SkillInfo } from '../../shared/types';
 
 export const DEFAULT_AGENT_ID = 'main';
 
@@ -144,6 +146,69 @@ export class AgentManager {
   setActive(id: string): void {
     if (!this.get(id)) throw new Error(`Agent not found: ${id}`);
     settingsManager.set({ activeAgentId: id });
+  }
+
+  listEnabledSkills(agentId: string): string[] {
+    const rows = getDb()
+      .prepare('SELECT skill_name FROM agent_skills WHERE agent_id = ?')
+      .all(agentId) as unknown as { skill_name: string }[];
+    return rows.map((r) => r.skill_name);
+  }
+
+  getSkillsWithStatus(agentId: string): Array<SkillInfo & { enabled: boolean }> {
+    const enabled = new Set(this.listEnabledSkills(agentId));
+    const all = skillManager.list();
+    return all.map((skill) => ({ ...skill, enabled: enabled.has(skill.name) }));
+  }
+
+  enableSkill(agentId: string, skillName: string): void {
+    const agent = this.get(agentId);
+    if (!agent) throw new Error(`Agent not found: ${agentId}`);
+    const skill = skillManager.getDetail(skillName);
+    if (!skill) throw new Error(`Skill not found: ${skillName}`);
+
+    const now = Date.now();
+    getDb()
+      .prepare(
+        'INSERT OR IGNORE INTO agent_skills (agent_id, skill_name, created_at) VALUES (?, ?, ?)'
+      )
+      .run(agentId, skillName, now);
+
+    const linkPath = path.join(agentSkillsDir(agentId), skillName);
+    if (!fs.existsSync(linkPath)) {
+      try {
+        fs.symlinkSync(skill.path, linkPath, 'dir');
+      } catch {
+        this.copyDir(skill.path, linkPath);
+      }
+    }
+  }
+
+  disableSkill(agentId: string, skillName: string): void {
+    const agent = this.get(agentId);
+    if (!agent) throw new Error(`Agent not found: ${agentId}`);
+
+    getDb()
+      .prepare('DELETE FROM agent_skills WHERE agent_id = ? AND skill_name = ?')
+      .run(agentId, skillName);
+
+    const linkPath = path.join(agentSkillsDir(agentId), skillName);
+    if (fs.existsSync(linkPath)) {
+      fs.rmSync(linkPath, { recursive: true, force: true });
+    }
+  }
+
+  private copyDir(src: string, dest: string): void {
+    ensureDir(dest);
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+      if (entry.isDirectory()) {
+        this.copyDir(srcPath, destPath);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
   }
 
   /** Create the built-in default agent on first run. */

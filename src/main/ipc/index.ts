@@ -83,6 +83,9 @@ import {
   AGENTS_SET_ACTIVE,
   AGENTS_GET_PERSONA,
   AGENTS_SET_PERSONA,
+  AGENT_SKILLS_LIST,
+  AGENT_SKILLS_ENABLE,
+  AGENT_SKILLS_DISABLE,
   UPDATE_GET_STATUS,
   UPDATE_CHECK,
   UPDATE_DOWNLOAD,
@@ -424,6 +427,19 @@ export function registerIpcHandlers(
     const agent = agentManager.get(id);
     if (!agent) throw new Error(`Agent not found: ${id}`);
     writePersona(id, { name: agent.name, description: agent.description, body });
+  });
+
+  // Agent skill assignment handlers
+  ipcMain.handle(AGENT_SKILLS_LIST, (_e, agentId: string) => {
+    return agentManager.getSkillsWithStatus(agentId);
+  });
+
+  ipcMain.handle(AGENT_SKILLS_ENABLE, (_e, agentId: string, skillName: string) => {
+    agentManager.enableSkill(agentId, skillName);
+  });
+
+  ipcMain.handle(AGENT_SKILLS_DISABLE, (_e, agentId: string, skillName: string) => {
+    agentManager.disableSkill(agentId, skillName);
   });
 
   // App-level handlers

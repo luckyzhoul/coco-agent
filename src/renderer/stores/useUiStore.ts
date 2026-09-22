@@ -9,19 +9,26 @@ import { create } from 'zustand';
 interface UiState {
   sidebarOpen: boolean;
   spacePanelOpen: boolean;
+  skillsModalOpen: boolean;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   toggleSpacePanel: () => void;
   setSpacePanelOpen: (open: boolean) => void;
+  toggleSkillsModal: () => void;
+  setSkillsModalOpen: (open: boolean) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
   sidebarOpen: true,
   spacePanelOpen: true,
+  skillsModalOpen: false,
 
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
   toggleSpacePanel: () => set((s) => ({ spacePanelOpen: !s.spacePanelOpen })),
-  setSpacePanelOpen: (open) => set({ spacePanelOpen: open })
+  setSpacePanelOpen: (open) => set({ spacePanelOpen: open }),
+
+  toggleSkillsModal: () => set((s) => ({ skillsModalOpen: !s.skillsModalOpen })),
+  setSkillsModalOpen: (open) => set({ skillsModalOpen: open })
 }));

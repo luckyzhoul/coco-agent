@@ -104,6 +104,11 @@ export const AGENTS_SET_ACTIVE = 'agents:setActive';
 export const AGENTS_GET_PERSONA = 'agents:getPersona';
 export const AGENTS_SET_PERSONA = 'agents:setPersona';
 
+// Agent skill assignment channels
+export const AGENT_SKILLS_LIST = 'agentSkills:list';
+export const AGENT_SKILLS_ENABLE = 'agentSkills:enable';
+export const AGENT_SKILLS_DISABLE = 'agentSkills:disable';
+
 // Auto-update channels
 export const UPDATE_GET_STATUS = 'update:getStatus';
 export const UPDATE_CHECK = 'update:check';

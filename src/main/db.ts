@@ -60,6 +60,14 @@ CREATE TABLE IF NOT EXISTS agents (
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS agent_skills (
+  agent_id   TEXT NOT NULL,
+  skill_name TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (agent_id, skill_name),
+  FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+);
 `;
 
 let db: DatabaseSync | null = null;

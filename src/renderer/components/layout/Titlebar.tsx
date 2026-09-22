@@ -61,21 +61,6 @@ export function Titlebar() {
         </button>
       </div>
 
-      <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground/50">
-        <button
-          className="px-3 py-1 rounded-md text-muted-foreground/70 hover:bg-accent/50 hover:text-foreground transition-colors"
-          style={NO_DRAG}
-        >
-          聊天
-        </button>
-        <button
-          className="px-3 py-1 rounded-md text-muted-foreground/40 hover:bg-accent/30 hover:text-muted-foreground/70 transition-colors"
-          style={NO_DRAG}
-        >
-          频道
-        </button>
-      </div>
-
       {/* 右侧：项目空间开关 + 窗口控制 */}
       <div className="flex items-center gap-2">
         <button

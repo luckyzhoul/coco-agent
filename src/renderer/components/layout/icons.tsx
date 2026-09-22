@@ -290,3 +290,26 @@ export function SparkleIcon({ className, style }: IconProps) {
     </svg>
   );
 }
+
+/** 下载/向下箭头 — 拖拽安装区 */
+export function DownloadIcon({ className, style }: IconProps) {
+  return (
+    <svg style={style} viewBox="0 0 24 24" fill="none" className={cn('w-4 h-4', className)} aria-hidden stroke="currentColor" strokeWidth="1.5">
+      <path d="M12 3v12" strokeLinecap="round" />
+      <path d="m7 10 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 21h14" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** 文件夹 */
+export function Folder2Icon({ className, style }: IconProps) {
+  return (
+    <svg style={style} viewBox="0 0 24 24" fill="none" className={cn('w-4 h-4', className)} aria-hidden stroke="currentColor" strokeWidth="1.5">
+      <path
+        d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

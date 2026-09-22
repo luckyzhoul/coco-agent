@@ -3,6 +3,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { ChatPanel } from './components/chat/ChatPanel';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { ToolApprovalModal } from './components/common/ToolApprovalModal';
+import { SkillsModal } from './components/skills/SkillsModal';
 import { useSettingsStore } from './stores/useSettingsStore';
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
         <SettingsPanel onClose={() => setShowSettings(false)} />
       )}
       <ToolApprovalModal />
+      <SkillsModal />
     </>
   );
 }

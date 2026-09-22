@@ -4,6 +4,7 @@ import { useSessionStore } from '../../stores/useSessionStore';
 import { useChatStore } from '../../stores/useChatStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useAgentStore } from '../../stores/useAgentStore';
+import { useUiStore } from '../../stores/useUiStore';
 import {
   PlusIcon,
   SettingsIcon,
@@ -71,13 +72,12 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   const setActiveSession = useChatStore((s) => s.setActiveSession);
   const setMessages = useChatStore((s) => s.setMessages);
   const mcpServers = useSettingsStore((s) => s.mcpServers);
-  const skills = useSettingsStore((s) => s.skills);
   const loadMcpServers = useSettingsStore((s) => s.loadMcpServers);
-  const loadSkills = useSettingsStore((s) => s.loadSkills);
   const agents = useAgentStore((s) => s.agents);
   const activeAgentId = useAgentStore((s) => s.activeAgentId);
   const loadAgents = useAgentStore((s) => s.loadAgents);
   const setActiveAgent = useAgentStore((s) => s.setActiveAgent);
+  const toggleSkillsModal = useUiStore((s) => s.toggleSkillsModal);
 
   const sessions = activeAgentId
     ? allSessions.filter((s) => (s.agentId ?? null) === activeAgentId)
@@ -89,7 +89,6 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
 
   const [isCreating, setIsCreating] = useState(false);
   const [showMcpSection, setShowMcpSection] = useState(true);
-  const [showSkillsSection, setShowSkillsSection] = useState(true);
   const [showSessionsSection, setShowSessionsSection] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<
@@ -139,8 +138,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     ipc.workspace.listRecent().then((ws) => setRecentWorkspaces(ws));
     loadAgents();
     loadMcpServers();
-    loadSkills();
-  }, [ipc, setSessions, setCurrentWorkspace, setRecentWorkspaces, loadAgents, loadMcpServers, loadSkills]);
+  }, [ipc, setSessions, setCurrentWorkspace, setRecentWorkspaces, loadAgents, loadMcpServers]);
 
   const handleSwitchAgent = async (id: string) => {
     if (id === activeAgentId) return;
@@ -279,16 +277,6 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
         </div>
       </div>
 
-      <div className="px-3 pb-3">
-        <div className="flex items-center gap-2 rounded-xl bg-input/60 px-3 py-2 text-sm">
-          <PaperclipIcon className="text-[#5B7FA6]" />
-          <span className="truncate flex-1 text-left text-foreground/80">
-            {currentWorkspace?.name || '选择工作台'}
-          </span>
-          <span className="w-2 h-2 rounded-full bg-emerald-500/70" />
-        </div>
-      </div>
-
       <div className="px-3 pb-2 space-y-0.5">
         <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors">
           <ActivityIcon />
@@ -298,7 +286,10 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
           <ClockIcon />
           <span>任务计划</span>
         </button>
-        <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors">
+        <button
+          onClick={toggleSkillsModal}
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
+        >
           <WrenchIcon />
           <span>Skills</span>
         </button>
@@ -440,45 +431,6 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
               {mcpServers.length > 5 && (
                 <div className="px-2 py-1 text-xs text-muted-foreground/60">
                   +{mcpServers.length - 5} 更多
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="px-3 pb-3 border-t border-border/40 pt-3">
-          <button
-            onClick={() => setShowSkillsSection(!showSkillsSection)}
-            className="flex w-full items-center gap-2 mb-2 px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ChevronRightIcon
-              style={{ transform: showSkillsSection ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
-            />
-            <WrenchIcon />
-            <span>Skills</span>
-            <span className="ml-auto text-xs text-muted-foreground/70">{skills.length} 已加载</span>
-          </button>
-
-          {showSkillsSection && (
-            <div className="space-y-0.5">
-              {skills.length === 0 ? (
-                <div className="px-2 py-2 text-center text-xs text-muted-foreground/60">
-                  未找到技能
-                </div>
-              ) : (
-                skills.slice(0, 5).map((skill) => (
-                  <div
-                    key={skill.name}
-                    className="px-2 py-1 text-xs text-muted-foreground truncate"
-                    title={skill.description}
-                  >
-                    {skill.name}
-                  </div>
-                ))
-              )}
-              {skills.length > 5 && (
-                <div className="px-2 py-1 text-xs text-muted-foreground/60">
-                  +{skills.length - 5} 更多
                 </div>
               )}
             </div>

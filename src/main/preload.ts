@@ -92,6 +92,9 @@ import {
   AGENTS_SET_ACTIVE,
   AGENTS_GET_PERSONA,
   AGENTS_SET_PERSONA,
+  AGENT_SKILLS_LIST,
+  AGENT_SKILLS_ENABLE,
+  AGENT_SKILLS_DISABLE,
   UPDATE_GET_STATUS,
   UPDATE_CHECK,
   UPDATE_DOWNLOAD,
@@ -315,6 +318,14 @@ const electronAPI = {
       ipcRenderer.invoke(AGENTS_GET_PERSONA, id) as Promise<string>,
     setPersona: (id: string, body: string) =>
       ipcRenderer.invoke(AGENTS_SET_PERSONA, id, body) as Promise<void>
+  },
+  agentSkills: {
+    list: (agentId: string) =>
+      ipcRenderer.invoke(AGENT_SKILLS_LIST, agentId) as Promise<Array<SkillInfo & { enabled: boolean }>>,
+    enable: (agentId: string, skillName: string) =>
+      ipcRenderer.invoke(AGENT_SKILLS_ENABLE, agentId, skillName) as Promise<void>,
+    disable: (agentId: string, skillName: string) =>
+      ipcRenderer.invoke(AGENT_SKILLS_DISABLE, agentId, skillName) as Promise<void>
   },
   app: {
     getPaths: () =>
