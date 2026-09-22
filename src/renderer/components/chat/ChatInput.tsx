@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useIpcRenderer } from '../../hooks/useIpcRenderer';
 import { useChatStore } from '../../stores/useChatStore';
+import { useSessionStore } from '../../stores/useSessionStore';
 
 export function ChatInput() {
   const [input, setInput] = useState('');
@@ -11,9 +12,14 @@ export function ChatInput() {
   const status = useChatStore((s) => s.status);
   const setLoading = useChatStore((s) => s.setLoading);
   const setError = useChatStore((s) => s.setError);
+  const setActiveSession = useChatStore((s) => s.setActiveSession);
+  const setMessages = useChatStore((s) => s.setMessages);
+  const currentWorkspace = useSessionStore((s) => s.currentWorkspace);
+  const setCurrentWorkspace = useSessionStore((s) => s.setCurrentWorkspace);
+  const setSessions = useSessionStore((s) => s.setSessions);
 
   const isBusy = status.state !== 'idle' && status.state !== 'error';
-  const canSend = input.trim().length > 0 && !!activeSessionId && !isBusy;
+  const canSend = input.trim().length > 0 && !isBusy;
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -31,6 +37,18 @@ export function ChatInput() {
     setError(null);
 
     try {
+      // 打开应用默认是新对话状态（无会话也可输入）：首条消息发出时才真正创建会话。
+      if (!activeSessionId) {
+        // 新会话默认落在当前项目空间；没有就退回默认空间（~/Desktop/CocoSpace）。
+        const workspace = currentWorkspace ?? (await ipc.workspace.getDefault());
+        if (!currentWorkspace) setCurrentWorkspace(workspace);
+
+        const sessionId = await ipc.agent.newSession(workspace.path);
+        setActiveSession(sessionId);
+        setMessages([]);
+        ipc.agent.listSessions().then(setSessions).catch(() => {});
+      }
+
       await ipc.agent.sendMessage(content);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -63,10 +81,9 @@ export function ChatInput() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={activeSessionId ? '试试 /rc，在手机上操作你的电脑' : '先开始一个新会话'}
-            disabled={!activeSessionId}
+            placeholder="试试 /rc，在手机上操作你的电脑"
             rows={1}
-            className="w-full resize-none bg-transparent px-5 pt-4 pb-2 text-sm outline-none placeholder:text-muted-foreground/60 disabled:opacity-50 text-foreground"
+            className="w-full resize-none bg-transparent px-5 pt-4 pb-2 text-sm outline-none placeholder:text-muted-foreground/60 text-foreground"
           />
           <div className="flex items-center justify-between px-3 pb-3">
             <div className="flex items-center gap-1">
