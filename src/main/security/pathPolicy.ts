@@ -80,7 +80,7 @@ export function decide(
     return {
       allowed: false,
       zone,
-      reason: `Security level is read-only; writing to ${path} is not permitted.`
+      reason: `当前是只读安全级别，不允许写入 ${path}。`
     };
   }
 
@@ -96,8 +96,8 @@ export function decide(
     allowed: false,
     zone,
     reason:
-      `Writes are restricted to the workspace and the CocoAgent data directory. ` +
-      `${path} is outside both. Raise the security level in Settings to allow this.`
+      `写入被限制在项目空间和 CocoAgent 数据目录内，${path} 不在其中。` +
+      `如需放开，请在设置里提高安全级别。`
   };
 }
 

@@ -13,7 +13,7 @@ export function ChatInput() {
   const setError = useChatStore((s) => s.setError);
 
   const isBusy = status.state !== 'idle' && status.state !== 'error';
-  const canSend = input.trim().length > 0 && activeSessionId && !isBusy;
+  const canSend = input.trim().length > 0 && !!activeSessionId && !isBusy;
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -43,7 +43,7 @@ export function ChatInput() {
     try {
       await ipc.agent.abort();
     } catch {
-      // Best effort
+      // 尽力而为
     }
   };
 
@@ -55,38 +55,38 @@ export function ChatInput() {
   };
 
   return (
-    <div className="border-t border-border bg-background p-4">
+    <div className="shrink-0 px-4 pb-4 pt-2">
       <div className="mx-auto max-w-3xl">
-        <div className="flex items-end gap-2 rounded-lg border border-input bg-card">
+        <div className="flex items-end gap-2 rounded-xl border border-border bg-card shadow-soft transition-shadow focus-within:shadow-lifted">
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={activeSessionId ? 'Type a message...' : 'Start a new session first'}
+            placeholder={activeSessionId ? '说点什么…' : '先新建一个会话'}
             disabled={!activeSessionId}
             rows={1}
-            className="flex-1 resize-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
+            className="min-h-[2.5rem] flex-1 resize-none bg-transparent px-3.5 py-2.5 text-[13.5px] outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
           />
           {isBusy ? (
             <button
               onClick={handleAbort}
-              className="mb-2 mr-2 rounded-md bg-red-500/20 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/30 transition-colors"
+              className="mb-2 mr-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/20"
             >
-              Stop
+              停止
             </button>
           ) : (
             <button
               onClick={handleSend}
               disabled={!canSend}
-              className="mb-2 mr-2 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+              className="mb-2 mr-2 rounded-lg bg-primary px-3.5 py-1.5 text-xs text-primary-foreground transition-opacity enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Send
+              发送
             </button>
           )}
         </div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          Enter to send, Shift+Enter for new line
+        <div className="mt-1.5 px-1 text-[11px] text-muted-foreground/60">
+          Enter 发送，Shift + Enter 换行
         </div>
       </div>
     </div>

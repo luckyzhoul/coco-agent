@@ -16,6 +16,7 @@ import { agentManager } from '../agents/AgentManager';
 import { agentSkillsDir, buildPersonaPrompt } from '../agents/persona';
 import { pathGuard } from '../security/PathGuard';
 import { excludedToolsFor } from '../security/pathPolicy';
+import { workspaceManager } from '../workspace/WorkspaceManager';
 import { mcpManager } from '../mcp/McpManager';
 import { buildMcpTools } from '../mcp/McpToolBridge';
 import { memoryService } from '../memory/MemoryService';
@@ -41,6 +42,8 @@ import {
   loadSessionMessages,
   generateSessionId,
   searchSessions,
+  setSessionPinned,
+  updateSessionWorkspace,
   type SessionSearchResult
 } from './session-store';
 
@@ -85,7 +88,7 @@ export class AgentRuntime {
     if (!active) {
       this.emit(
         AGENT_EVENT_ERROR,
-        'No model configured. Open Settings → Models and add one.'
+        '还没有配置模型。请到「设置 → 模型」里添加一个。'
       );
       return undefined;
     }
@@ -101,11 +104,11 @@ export class AgentRuntime {
     const model = modelRuntime.getModel(providerId, active.model);
 
     if (!model) {
-      const detail = modelRuntime.getError() || 'unknown reason';
+      const detail = modelRuntime.getError() || '未知原因';
       this.emit(
         AGENT_EVENT_ERROR,
-        `Model "${active.name}" (${active.model}) is not available in the Pi runtime: ${detail}. ` +
-          `Check the base URL and API key in Settings → Models.`
+        `模型「${active.name}」（${active.model}）在 Pi 运行时中不可用：${detail}。` +
+          `请检查「设置 → 模型」里的接口地址与 API Key。`
       );
       return undefined;
     }
@@ -165,7 +168,10 @@ export class AgentRuntime {
     }
 
     const sessionId = generateSessionId();
-    const title = `New Chat ${new Date().toLocaleTimeString()}`;
+    const title = `新对话 ${new Date().toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`;
 
     // PathGuard's write root follows the session's workspace.
     pathGuard.setWorkspaceRoot(workspacePath);
@@ -187,6 +193,7 @@ export class AgentRuntime {
       cwd: workspacePath,
       agentDir: PI_RUNTIME_DIR,
       customTools: allCustomTools as any[],
+      excludeTools: this.securityExclusions(),
       sessionManager: SessionManager.inMemory(),
       settingsManager: piSettingsManager,
       resourceLoader,
@@ -247,11 +254,13 @@ export class AgentRuntime {
     return excludedToolsFor(pathGuard.level);
   }
 
-  async switchSession(sessionId: string): Promise<void> {
+  /** Rebuilds the Pi session for `sessionId`; returns the session's metadata
+   * so the renderer can mirror its bound project space. */
+  async switchSession(sessionId: string): Promise<SessionInfo> {
     const sessions = listSessions();
     const meta = sessions.find(s => s.id === sessionId);
     if (!meta) {
-      throw new Error(`Session not found: ${sessionId}`);
+      throw new Error(`找不到会话：${sessionId}`);
     }
 
     // Clean up previous session
@@ -276,6 +285,19 @@ export class AgentRuntime {
     memoryService.load(agentManager.getActiveId());
 
     pathGuard.setWorkspaceRoot(meta.workspacePath);
+
+    // Switching a conversation switches its project space everywhere: the app's
+    // current space, the space panel, and the directory new sessions inherit.
+    if (meta.workspacePath) {
+      try {
+        workspaceManager.setCurrent({
+          path: meta.workspacePath,
+          name: path.basename(meta.workspacePath) || meta.workspacePath
+        });
+      } catch {
+        // The folder may have been moved or deleted; the session still opens.
+      }
+    }
 
     const resourceLoader = await this.buildResourceLoader(meta.workspacePath, piSettingsManager);
     const allCustomTools = await this.buildCustomTools(meta.workspacePath);
@@ -304,6 +326,7 @@ export class AgentRuntime {
     });
 
     this.setStatus({ sessionId, state: 'idle' });
+    return meta;
   }
 
   deleteSession(sessionId: string): void {
@@ -323,6 +346,22 @@ export class AgentRuntime {
     return listSessions();
   }
 
+  setSessionPinned(sessionId: string, pinned: boolean): void {
+    setSessionPinned(sessionId, pinned);
+  }
+
+  /**
+   * Move the active session to a different project space.
+   *
+   * The session's binding is the source of truth for cwd and PathGuard, so
+   * rebinding means updating the stored path and rebuilding the Pi session.
+   */
+  async rebindWorkspace(workspacePath: string): Promise<SessionInfo | null> {
+    if (!this.activeSessionId) return null;
+    updateSessionWorkspace(this.activeSessionId, workspacePath);
+    return this.switchSession(this.activeSessionId);
+  }
+
   getSessionMessages(sessionId: string): Message[] {
     return loadSessionMessages(sessionId);
   }
@@ -337,7 +376,7 @@ export class AgentRuntime {
 
   async sendMessage(content: string): Promise<void> {
     if (!this.activeSession || !this.activeSessionId) {
-      throw new Error('No active session');
+      throw new Error('当前没有活动会话');
     }
 
     // Reset assistant state for new turn
@@ -401,7 +440,7 @@ export class AgentRuntime {
         if (msg.stopReason === 'error' || msg.stopReason === 'aborted') {
           const detail =
             msg.errorMessage ||
-            (msg.stopReason === 'aborted' ? 'Generation aborted.' : 'Model returned an error.');
+            (msg.stopReason === 'aborted' ? '生成已中止。' : '模型返回了错误。');
           this.emit(AGENT_EVENT_ERROR, detail);
           this.setStatus({ state: msg.stopReason === 'aborted' ? 'idle' : 'error' });
           break;

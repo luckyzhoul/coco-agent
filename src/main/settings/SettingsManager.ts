@@ -6,10 +6,12 @@ const SETTINGS_KEY = 'app';
 const DEFAULT_SETTINGS: AppSettings = {
   securityLevel: 'workspace',
   activeAgentId: null,
+  defaultWorkspacePath: '~/Desktop/CocoSpace',
+  lastWorkspacePath: '',
   models: [],
   activeModelId: null,
   mcpServers: [],
-  theme: 'dark',
+  theme: 'light',
   fontSize: 14,
   autoApproveTools: false,
   defaultThinkingLevel: 'medium',

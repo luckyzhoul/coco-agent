@@ -10,7 +10,10 @@ import type {
   SecurityLevel,
   ModelTestResult,
   MCPConfig,
-  SkillInfo
+  SkillInfo,
+  FileEntry,
+  FileReadResult,
+  FileWriteResult
 } from '../shared/types';
 import {
   AGENT_SEND_MESSAGE,
@@ -22,6 +25,8 @@ import {
   AGENT_GET_SESSION_MESSAGES,
   AGENT_GET_STATUS,
   AGENT_SEARCH_SESSIONS,
+  AGENT_PIN_SESSION,
+  AGENT_REBIND_WORKSPACE,
   AGENT_EVENT_MESSAGE,
   AGENT_EVENT_TOOL_CALL,
   AGENT_EVENT_TOOL_RESULT,
@@ -30,6 +35,13 @@ import {
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
   WORKSPACE_LIST_RECENT,
+  WORKSPACE_GET_DEFAULT,
+  WORKSPACE_SET_DEFAULT,
+  WORKSPACE_SET_CURRENT,
+  WORKSPACE_LIST_FILES,
+  WORKSPACE_READ_FILE,
+  WORKSPACE_WRITE_FILE,
+  WORKSPACE_OPEN_IN_OS,
   SETTINGS_GET,
   SETTINGS_SET,
   SETTINGS_RESET,
@@ -113,7 +125,11 @@ const electronAPI = {
     searchSessions: (query: string) =>
       ipcRenderer.invoke(AGENT_SEARCH_SESSIONS, query) as Promise<
         { session: SessionInfo; matches: { messageId: string; role: string; snippet: string }[] }[]
-      >
+      >,
+    setPinned: (sessionId: string, pinned: boolean) =>
+      ipcRenderer.invoke(AGENT_PIN_SESSION, sessionId, pinned) as Promise<SessionInfo[]>,
+    rebindWorkspace: (workspacePath: string) =>
+      ipcRenderer.invoke(AGENT_REBIND_WORKSPACE, workspacePath) as Promise<SessionInfo | null>
   },
   workspace: {
     select: () =>
@@ -121,7 +137,21 @@ const electronAPI = {
     getCurrent: () =>
       ipcRenderer.invoke(WORKSPACE_GET_CURRENT) as Promise<WorkspaceInfo | null>,
     listRecent: () =>
-      ipcRenderer.invoke(WORKSPACE_LIST_RECENT) as Promise<WorkspaceInfo[]>
+      ipcRenderer.invoke(WORKSPACE_LIST_RECENT) as Promise<WorkspaceInfo[]>,
+    getDefault: () =>
+      ipcRenderer.invoke(WORKSPACE_GET_DEFAULT) as Promise<WorkspaceInfo>,
+    setDefault: (path: string) =>
+      ipcRenderer.invoke(WORKSPACE_SET_DEFAULT, path) as Promise<WorkspaceInfo>,
+    setCurrent: (path: string) =>
+      ipcRenderer.invoke(WORKSPACE_SET_CURRENT, path) as Promise<WorkspaceInfo>,
+    listFiles: (dirPath: string) =>
+      ipcRenderer.invoke(WORKSPACE_LIST_FILES, dirPath) as Promise<FileEntry[]>,
+    readFile: (filePath: string) =>
+      ipcRenderer.invoke(WORKSPACE_READ_FILE, filePath) as Promise<FileReadResult>,
+    writeFile: (filePath: string, content: string, expectedMtime?: number) =>
+      ipcRenderer.invoke(WORKSPACE_WRITE_FILE, filePath, content, expectedMtime) as Promise<FileWriteResult>,
+    openInOS: (targetPath: string) =>
+      ipcRenderer.invoke(WORKSPACE_OPEN_IN_OS, targetPath) as Promise<void>
   },
   settings: {
     get: () => ipcRenderer.invoke(SETTINGS_GET) as Promise<AppSettings>,

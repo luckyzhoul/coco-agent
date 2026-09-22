@@ -9,27 +9,15 @@ interface MessageBubbleProps {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
-  return (
-    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-          isUser
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-card text-card-foreground border border-border'
-        }`}
-      >
-        {!isUser && (
-          <div className="mb-1 text-xs font-semibold text-muted-foreground">
-            CocoAgent
-          </div>
-        )}
-
-        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+  // 用户消息走气泡，助手消息直接落在纸面上（阅读感更好，也贴近参考稿）。
+  if (!isUser) {
+    return (
+      <div className="w-full">
+        <div className="mb-1.5 text-[11px] tracking-wider text-muted-foreground/70">助手</div>
+        <div className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground/90">
           {message.content || (
-            <span className="text-muted-foreground italic">
-              {message.toolCalls && message.toolCalls.length > 0
-                ? 'Processing...'
-                : ''}
+            <span className="italic text-muted-foreground/70">
+              {message.toolCalls && message.toolCalls.length > 0 ? '处理中…' : ''}
             </span>
           )}
         </div>
@@ -41,6 +29,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             ))}
           </div>
         )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex w-full justify-end">
+      <div className="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground shadow-soft">
+        <div className="whitespace-pre-wrap text-[13.5px] leading-relaxed">{message.content}</div>
       </div>
     </div>
   );

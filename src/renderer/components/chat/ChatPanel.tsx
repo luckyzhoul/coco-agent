@@ -12,6 +12,7 @@ export function ChatPanel() {
   const activeSessionId = useChatStore((s) => s.activeSessionId);
   const addMessage = useChatStore((s) => s.addMessage);
   const setStatus = useChatStore((s) => s.setStatus);
+  const error = useChatStore((s) => s.error);
   const setError = useChatStore((s) => s.setError);
   const setMessages = useChatStore((s) => s.setMessages);
   const isLoading = useChatStore((s) => s.isLoading);
@@ -35,8 +36,8 @@ export function ChatPanel() {
     setStatus(s);
   });
 
-  useAgentEvent('agentError', (error: string) => {
-    setError(error);
+  useAgentEvent('agentError', (err: string) => {
+    setError(err);
   });
 
   useAgentEvent('agentToolCall', (data) => {
@@ -51,14 +52,26 @@ export function ChatPanel() {
     }
   );
 
-  const isThinking =
-    status.state === 'thinking' ||
-    status.state === 'tool_calling' ||
-    status.state === 'responding';
-
   return (
-    <div className="flex h-full flex-col">
-      <MessageList messages={messages} isLoading={isLoading || isLoading} />
+    <div className="flex h-full flex-col bg-background">
+      <MessageList messages={messages} isLoading={isLoading} />
+
+      {error && (
+        <div className="mx-auto mb-1 flex w-full max-w-3xl items-start gap-2 px-4">
+          <div className="flex min-w-0 flex-1 items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-[11.5px] text-destructive">
+            <span className="shrink-0">⚠</span>
+            <span className="min-w-0 flex-1 whitespace-pre-wrap">{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="shrink-0 opacity-60 transition-opacity hover:opacity-100"
+              title="关闭"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <ChatInput />
     </div>
   );

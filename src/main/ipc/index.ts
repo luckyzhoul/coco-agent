@@ -2,6 +2,7 @@ import type { IpcMain } from 'electron';
 import type { BrowserWindow } from 'electron';
 import { dialog, shell } from 'electron';
 import { workspaceManager } from '../workspace/WorkspaceManager';
+import { fileService } from '../workspace/FileService';
 import { agentRuntime } from '../agent/AgentRuntime';
 import { settingsManager } from '../settings/SettingsManager';
 import { modelManager } from '../models/ModelManager';
@@ -16,6 +17,13 @@ import {
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
   WORKSPACE_LIST_RECENT,
+  WORKSPACE_GET_DEFAULT,
+  WORKSPACE_SET_DEFAULT,
+  WORKSPACE_SET_CURRENT,
+  WORKSPACE_LIST_FILES,
+  WORKSPACE_READ_FILE,
+  WORKSPACE_WRITE_FILE,
+  WORKSPACE_OPEN_IN_OS,
   AGENT_SEND_MESSAGE,
   AGENT_ABORT,
   AGENT_NEW_SESSION,
@@ -25,6 +33,8 @@ import {
   AGENT_GET_SESSION_MESSAGES,
   AGENT_GET_STATUS,
   AGENT_SEARCH_SESSIONS,
+  AGENT_PIN_SESSION,
+  AGENT_REBIND_WORKSPACE,
   SETTINGS_GET,
   SETTINGS_SET,
   SETTINGS_RESET,
@@ -104,6 +114,36 @@ export function registerIpcHandlers(
     return workspaceManager.listRecent();
   });
 
+  ipcMain.handle(WORKSPACE_GET_DEFAULT, () => {
+    return workspaceManager.ensureDefault();
+  });
+
+  ipcMain.handle(WORKSPACE_SET_DEFAULT, (_e, dirPath: string) => {
+    return workspaceManager.setDefault(dirPath);
+  });
+
+  ipcMain.handle(WORKSPACE_SET_CURRENT, (_e, dirPath: string) => {
+    return workspaceManager.setCurrentPath(dirPath);
+  });
+
+  // Project space file browsing. FileService confines every path to the
+  // session's project space and re-checks the security level for writes.
+  ipcMain.handle(WORKSPACE_LIST_FILES, (_e, dirPath: string) => {
+    return fileService.listFiles(dirPath);
+  });
+
+  ipcMain.handle(WORKSPACE_READ_FILE, (_e, filePath: string) => {
+    return fileService.readFile(filePath);
+  });
+
+  ipcMain.handle(WORKSPACE_WRITE_FILE, (_e, filePath: string, content: string, expectedMtime?: number) => {
+    return fileService.writeFile(filePath, content, expectedMtime);
+  });
+
+  ipcMain.handle(WORKSPACE_OPEN_IN_OS, async (_e, targetPath: string) => {
+    await fileService.openInOS(targetPath);
+  });
+
   // Agent handlers
   ipcMain.handle(AGENT_NEW_SESSION, async (_e, workspacePath: string) => {
     agentRuntime.setMainWindow(getMainWindow());
@@ -112,7 +152,8 @@ export function registerIpcHandlers(
 
   ipcMain.handle(AGENT_SWITCH_SESSION, async (_e, sessionId: string) => {
     agentRuntime.setMainWindow(getMainWindow());
-    await agentRuntime.switchSession(sessionId);
+    // Return the session meta: the renderer mirrors its bound project space.
+    return agentRuntime.switchSession(sessionId);
   });
 
   ipcMain.handle(AGENT_DELETE_SESSION, (_e, sessionId: string) => {
@@ -133,6 +174,16 @@ export function registerIpcHandlers(
 
   ipcMain.handle(AGENT_SEARCH_SESSIONS, (_e, query: string) => {
     return agentRuntime.searchSessions(query);
+  });
+
+  ipcMain.handle(AGENT_PIN_SESSION, (_e, sessionId: string, pinned: boolean) => {
+    agentRuntime.setSessionPinned(sessionId, pinned);
+    return agentRuntime.listSessions();
+  });
+
+  ipcMain.handle(AGENT_REBIND_WORKSPACE, async (_e, workspacePath: string) => {
+    agentRuntime.setMainWindow(getMainWindow());
+    return agentRuntime.rebindWorkspace(workspacePath);
   });
 
   ipcMain.handle(AGENT_SEND_MESSAGE, async (_e, content: string) => {

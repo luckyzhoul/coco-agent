@@ -8,6 +8,8 @@ export const AGENT_LIST_SESSIONS = 'agent:listSessions';
 export const AGENT_GET_SESSION_MESSAGES = 'agent:getSessionMessages';
 export const AGENT_GET_STATUS = 'agent:getStatus';
 export const AGENT_SEARCH_SESSIONS = 'agent:searchSessions';
+export const AGENT_PIN_SESSION = 'agent:pinSession';
+export const AGENT_REBIND_WORKSPACE = 'agent:rebindWorkspace';
 
 // Agent event channels (main -> renderer)
 export const AGENT_EVENT_MESSAGE = 'agent:event:message';
@@ -20,6 +22,15 @@ export const AGENT_EVENT_ERROR = 'agent:event:error';
 export const WORKSPACE_SELECT = 'workspace:select';
 export const WORKSPACE_GET_CURRENT = 'workspace:getCurrent';
 export const WORKSPACE_LIST_RECENT = 'workspace:listRecent';
+export const WORKSPACE_GET_DEFAULT = 'workspace:getDefault';
+export const WORKSPACE_SET_DEFAULT = 'workspace:setDefault';
+export const WORKSPACE_SET_CURRENT = 'workspace:setCurrent';
+
+// Project space file browsing (scoped to the current space)
+export const WORKSPACE_LIST_FILES = 'workspace:listFiles';
+export const WORKSPACE_READ_FILE = 'workspace:readFile';
+export const WORKSPACE_WRITE_FILE = 'workspace:writeFile';
+export const WORKSPACE_OPEN_IN_OS = 'workspace:openInOS';
 
 // Settings channels
 export const SETTINGS_GET = 'settings:get';

@@ -96,9 +96,9 @@ export function SkillsSettings() {
     });
 
   const sourceLabels: Record<string, string> = {
-    'built-in': 'Built-in',
-    'global': 'Global',
-    'project': 'Project'
+    'built-in': '内置',
+    'global': '全局',
+    'project': '项目'
   };
 
   const installedNames = new Set(skills.map((s) => s.name));
@@ -106,9 +106,9 @@ export function SkillsSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-base font-medium mb-1">Skills</h3>
+        <h3 className="text-base font-medium mb-1">技能</h3>
         <p className="text-sm text-muted-foreground">
-          Extend agent capabilities with specialized skills.
+          通过专用技能扩展 Agent 的能力。
         </p>
       </div>
 
@@ -124,13 +124,13 @@ export function SkillsSettings() {
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t === 'installed' ? `Installed (${skills.length})` : 'Marketplace'}
+            {t === 'installed' ? `已安装（${skills.length}）` : '技能市场'}
           </button>
         ))}
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -142,26 +142,26 @@ export function SkillsSettings() {
               onClick={handleOpenDir}
               className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
             >
-              Open Folder
+              打开文件夹
             </button>
             <button
               onClick={loadSkills}
               className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
             >
-              ↻ Reload
+              ↻ 重新加载
             </button>
             <button
               onClick={handleInstallFolder}
               disabled={busy === 'folder'}
               className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {busy === 'folder' ? 'Installing…' : '+ Install from Folder'}
+              {busy === 'folder' ? '安装中…' : '+ 从文件夹安装'}
             </button>
           </div>
 
           {/* Install from source */}
           <div className="bg-background border border-border rounded-lg p-4">
-            <div className="text-sm font-medium mb-2">Install from URL or path</div>
+            <div className="text-sm font-medium mb-2">从 URL 或路径安装</div>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -175,21 +175,21 @@ export function SkillsSettings() {
                 disabled={!sourceInput.trim() || busy === 'source'}
                 className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
-                {busy === 'source' ? 'Installing…' : 'Install'}
+                {busy === 'source' ? '安装中…' : '安装'}
               </button>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Supports git repositories, <code className="bg-muted px-1 rounded">.zip</code> /{' '}
-              <code className="bg-muted px-1 rounded">.tar.gz</code> archives, and local folders.
-              The archive or repo must contain a <code className="bg-muted px-1 rounded">SKILL.md</code>.
+              支持 git 仓库、<code className="bg-muted px-1 rounded">.zip</code> /{' '}
+              <code className="bg-muted px-1 rounded">.tar.gz</code> 压缩包和本地文件夹。
+              压缩包或仓库中必须包含 <code className="bg-muted px-1 rounded">SKILL.md</code>。
             </p>
           </div>
 
           <div className="bg-background border border-border rounded-lg p-4">
-            <div className="text-sm font-medium mb-2">Skill locations</div>
+            <div className="text-sm font-medium mb-2">技能位置</div>
             <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-              <li><code className="bg-muted px-1 rounded">{`${'{COCO_HOME}'}/skills/`}</code> (global — managed here, default <code>~/.coco</code>)</li>
-              <li><code className="bg-muted px-1 rounded">&lt;workspace&gt;/.coco/skills/</code> (project)</li>
+              <li><code className="bg-muted px-1 rounded">{`${'{COCO_HOME}'}/skills/`}</code>（全局 — 在此管理，默认 <code>~/.coco</code>）</li>
+              <li><code className="bg-muted px-1 rounded">&lt;workspace&gt;/.coco/skills/</code>（项目）</li>
             </ul>
           </div>
 
@@ -197,7 +197,7 @@ export function SkillsSettings() {
           <div className="space-y-2">
             {skills.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-sm bg-background border border-border rounded-lg">
-                No skills installed yet.
+                尚未安装任何技能。
               </div>
             ) : (
               skills.map((skill) => (
@@ -206,7 +206,7 @@ export function SkillsSettings() {
                     <div className="min-w-0">
                       <div className="text-sm font-medium">{skill.name}</div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        {skill.description || 'No description'}
+                        {skill.description || '无描述'}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -217,15 +217,15 @@ export function SkillsSettings() {
                         onClick={() => handleView(skill)}
                         className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        View
+                        查看
                       </button>
                       {skill.source === 'global' && (
                         <button
                           onClick={() => handleUninstall(skill.name)}
                           disabled={busy === `uninstall:${skill.name}`}
-                          className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
+                          className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50 transition-colors"
                         >
-                          Remove
+                          移除
                         </button>
                       )}
                     </div>
@@ -241,9 +241,9 @@ export function SkillsSettings() {
         <>
           {/* Registry config */}
           <div className="bg-background border border-border rounded-lg p-4 space-y-3">
-            <div className="text-sm font-medium">Skill Registry</div>
+            <div className="text-sm font-medium">技能仓库</div>
             <p className="text-xs text-muted-foreground">
-              Point this at a JSON catalog listing available skills. The catalog format is{' '}
+              指向一个列出可用技能的 JSON 目录。目录格式为{' '}
               <code className="bg-muted px-1 rounded">{'{ "skills": [{ "name", "description", "source" }] }'}</code>.
             </p>
             <div className="flex gap-2">
@@ -259,34 +259,34 @@ export function SkillsSettings() {
                 disabled={busy === 'saveRegistry'}
                 className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent disabled:opacity-50 transition-colors"
               >
-                Save
+                保存
               </button>
               <button
                 onClick={handleLoadCatalog}
                 disabled={!registryUrl.trim() || loadingCatalog}
                 className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
-                {loadingCatalog ? 'Loading…' : 'Browse'}
+                {loadingCatalog ? '加载中…' : '浏览'}
               </button>
             </div>
           </div>
 
           {catalogError && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">
+            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive">
               {catalogError}
             </div>
           )}
 
           {!registryUrl.trim() && (
             <div className="text-center py-8 text-muted-foreground text-sm bg-background border border-border rounded-lg">
-              Set a registry URL above to browse available skills.
+              在上方设置仓库 URL 即可浏览可用技能。
             </div>
           )}
 
           {catalog && (
             <div className="space-y-2">
               <div className="text-sm font-medium">
-                {catalog.name} — {catalog.skills.length} available
+                {catalog.name} — {catalog.skills.length} 个可用
               </div>
               {catalog.skills.map((entry) => (
                 <div
@@ -306,19 +306,19 @@ export function SkillsSettings() {
                       </div>
                       {entry.author && (
                         <div className="text-xs text-muted-foreground/70 mt-0.5">
-                          by {entry.author}
+                          作者 {entry.author}
                         </div>
                       )}
                     </div>
                     {installedNames.has(entry.name) ? (
-                      <span className="text-xs text-primary shrink-0">Installed</span>
+                      <span className="text-xs text-primary shrink-0">已安装</span>
                     ) : (
                       <button
                         onClick={() => handleCatalogInstall(entry)}
                         disabled={busy === `catalog:${entry.name}`}
                         className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-xs hover:opacity-90 disabled:opacity-50 shrink-0 transition-opacity"
                       >
-                        {busy === `catalog:${entry.name}` ? 'Installing…' : 'Install'}
+                        {busy === `catalog:${entry.name}` ? '安装中…' : '安装'}
                       </button>
                     )}
                   </div>

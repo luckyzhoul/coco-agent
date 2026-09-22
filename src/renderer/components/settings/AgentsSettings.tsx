@@ -78,47 +78,47 @@ export function AgentsSettings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-medium mb-1">Agents</h3>
+          <h3 className="text-base font-medium mb-1">Agent</h3>
           <p className="text-sm text-muted-foreground">
-            Each agent has its own persona, memory, and sessions. Agents are stored as folders
-            under <code className="bg-muted px-1 rounded">COCO_HOME/agents/</code>.
+            每个 Agent 拥有独立的人格、记忆和会话。Agent 以文件夹形式存放在
+            <code className="bg-muted px-1 rounded">COCO_HOME/agents/</code> 下。
           </p>
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
           className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 transition-opacity"
         >
-          + New Agent
+          + 新建 Agent
         </button>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
       {showCreate && (
         <div className="bg-background border border-border rounded-lg p-4 space-y-3">
-          <h4 className="text-sm font-medium">New Agent</h4>
+          <h4 className="text-sm font-medium">新建 Agent</h4>
           <input
             type="text"
             value={newAgent.name}
             onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
-            placeholder="Name, e.g. Research Assistant"
+            placeholder="名称，例如 研究助手"
             className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
           />
           <input
             type="text"
             value={newAgent.description}
             onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })}
-            placeholder="Short description (optional)"
+            placeholder="简短描述（可选）"
             className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
           />
           <textarea
             value={newAgent.persona}
             onChange={(e) => setNewAgent({ ...newAgent, persona: e.target.value })}
-            placeholder="Persona (optional) — how should this agent speak and behave?"
+            placeholder="人格设定（可选）— 这个 Agent 该如何说话和行动？"
             rows={3}
             className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm resize-none"
           />
@@ -127,14 +127,14 @@ export function AgentsSettings() {
               onClick={() => setShowCreate(false)}
               className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
             >
-              Cancel
+              取消
             </button>
             <button
               onClick={handleCreate}
               disabled={!newAgent.name.trim()}
               className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              Create
+              创建
             </button>
           </div>
         </div>
@@ -159,11 +159,11 @@ export function AgentsSettings() {
                 <div className="text-sm font-medium flex items-center gap-2">
                   {agent.name}
                   {agent.id === activeAgentId && (
-                    <span className="text-xs text-primary font-normal">Active</span>
+                    <span className="text-xs text-primary font-normal">当前</span>
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {agent.description || 'No description'} · <code>{agent.id}</code>
+                  {agent.description || '无描述'} · <code>{agent.id}</code>
                 </div>
               </button>
               <div className="flex items-center gap-2 shrink-0">
@@ -172,7 +172,7 @@ export function AgentsSettings() {
                     onClick={() => run(() => setActiveAgent(agent.id))}
                     className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    Set Active
+                    设为当前
                   </button>
                 )}
                 <input
@@ -189,9 +189,9 @@ export function AgentsSettings() {
                 {agent.id !== 'main' && (
                   <button
                     onClick={() => handleDelete(agent.id)}
-                    className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                    className="text-xs text-destructive hover:text-destructive/80 transition-colors"
                   >
-                    Delete
+                    删除
                   </button>
                 )}
               </div>
@@ -206,10 +206,10 @@ export function AgentsSettings() {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="text-sm font-medium">
-                Persona — {selected.name}
+                人格 — {selected.name}
               </h4>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Injected into this agent's system prompt. Markdown supported.
+                会注入该 Agent 的系统提示词。支持 Markdown。
               </p>
             </div>
             <button
@@ -217,14 +217,14 @@ export function AgentsSettings() {
               disabled={savingPersona}
               className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {savingPersona ? 'Saving…' : personaSaved ? '✓ Saved' : 'Save Persona'}
+              {savingPersona ? '保存中…' : personaSaved ? '✓ 已保存' : '保存人格'}
             </button>
           </div>
           <textarea
             value={persona}
             onChange={(e) => setPersonaText(e.target.value)}
             rows={10}
-            placeholder={`e.g.\nYou are a meticulous research assistant. You speak concisely,\nalways cite sources, and ask clarifying questions before\ndiving into a long task.`}
+            placeholder={`例如：\n你是一位严谨细致的研究助手。你说话简洁，\n总是引用来源，在着手长任务前会先提出\n澄清性问题。`}
             className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm font-mono resize-y"
           />
         </div>

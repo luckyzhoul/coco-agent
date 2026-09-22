@@ -15,13 +15,13 @@ interface SettingsPanelProps {
 type TabId = 'general' | 'agents' | 'security' | 'models' | 'mcp' | 'skills' | 'updates';
 
 const tabs: { id: TabId; label: string; icon: string }[] = [
-  { id: 'general', label: 'General', icon: '⚙️' },
-  { id: 'agents', label: 'Agents', icon: '🎭' },
-  { id: 'security', label: 'Security', icon: '🛡️' },
-  { id: 'models', label: 'Models', icon: '🧠' },
-  { id: 'mcp', label: 'MCP Servers', icon: '🔌' },
-  { id: 'skills', label: 'Skills', icon: '🧩' },
-  { id: 'updates', label: 'Updates', icon: '⬆️' }
+  { id: 'general', label: '通用', icon: '⚙️' },
+  { id: 'agents', label: 'Agent', icon: '🎭' },
+  { id: 'security', label: '安全', icon: '🛡️' },
+  { id: 'models', label: '模型', icon: '🧠' },
+  { id: 'mcp', label: 'MCP 服务', icon: '🔌' },
+  { id: 'skills', label: '技能', icon: '🧩' },
+  { id: 'updates', label: '更新', icon: '⬆️' }
 ];
 
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
@@ -38,7 +38,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       <div className="bg-card border border-border rounded-lg w-[900px] max-h-[80vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="text-lg font-semibold">Settings</h2>
+          <h2 className="text-lg font-semibold">设置</h2>
           <button
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground transition-colors text-xl"
@@ -70,7 +70,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           <div className="flex-1 overflow-y-auto p-6">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
-                <span className="text-muted-foreground">Loading...</span>
+                <span className="text-muted-foreground">加载中…</span>
               </div>
             ) : (
               <>

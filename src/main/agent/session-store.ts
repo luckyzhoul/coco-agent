@@ -9,6 +9,7 @@ interface SessionRow {
   created_at: number;
   updated_at: number;
   message_count: number;
+  pinned: number;
 }
 
 interface MessageRow {
@@ -22,7 +23,7 @@ interface MessageRow {
 
 export function listSessions(): SessionInfo[] {
   const rows = getDb()
-    .prepare('SELECT * FROM sessions ORDER BY updated_at DESC')
+    .prepare('SELECT * FROM sessions ORDER BY pinned DESC, updated_at DESC')
     .all() as unknown as SessionRow[];
 
   return rows.map((m) => ({
@@ -32,8 +33,21 @@ export function listSessions(): SessionInfo[] {
     agentId: m.agent_id,
     createdAt: m.created_at,
     updatedAt: m.updated_at,
-    messageCount: m.message_count
+    messageCount: m.message_count,
+    pinned: !!m.pinned
   }));
+}
+
+export function setSessionPinned(sessionId: string, pinned: boolean): void {
+  getDb()
+    .prepare('UPDATE sessions SET pinned = ? WHERE id = ?')
+    .run(pinned ? 1 : 0, sessionId);
+}
+
+export function updateSessionWorkspace(sessionId: string, workspacePath: string): void {
+  getDb()
+    .prepare('UPDATE sessions SET workspace_path = ?, updated_at = ? WHERE id = ?')
+    .run(workspacePath, Date.now(), sessionId);
 }
 
 export function createSessionMeta(

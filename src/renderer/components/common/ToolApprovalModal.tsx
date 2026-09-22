@@ -36,19 +36,19 @@ export function ToolApprovalModal() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-card border border-border rounded-lg w-[500px] max-h-[80vh] flex flex-col shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="flex max-h-[80vh] w-[500px] flex-col rounded-xl border border-border bg-card shadow-lifted">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border">
+        <div className="border-b border-border px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${
-              currentRequest.isDangerous ? 'bg-red-500' : 'bg-yellow-500'
+            <div className={`h-2.5 w-2.5 rounded-full ${
+              currentRequest.isDangerous ? 'bg-destructive' : 'bg-amber-500'
             }`} />
-            <h3 className="text-base font-semibold">
-              {currentRequest.isDangerous ? 'Dangerous Tool Request' : 'Tool Request'}
+            <h3 className="text-[15px] font-medium">
+              {currentRequest.isDangerous ? '危险工具调用请求' : '工具调用请求'}
             </h3>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="mt-1 text-[13px] text-muted-foreground">
             {currentRequest.description}
           </p>
         </div>
@@ -57,19 +57,19 @@ export function ToolApprovalModal() {
         <div className="flex-1 overflow-y-auto px-6 py-4">
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                Tool Name
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                工具名称
               </label>
-              <div className="font-mono text-sm bg-background rounded-md px-3 py-2 border border-border">
+              <div className="rounded-md border border-border bg-background/70 px-3 py-2 font-mono text-[13px]">
                 {currentRequest.toolName}
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                Parameters
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                调用参数
               </label>
-              <pre className="text-xs bg-background rounded-md px-3 py-2 border border-border max-h-64 overflow-auto font-mono whitespace-pre-wrap">
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-background/70 px-3 py-2 font-mono text-[11.5px]">
                 {formatInput(currentRequest.toolInput)}
               </pre>
             </div>
@@ -77,31 +77,31 @@ export function ToolApprovalModal() {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border flex gap-2 justify-end">
+        <div className="flex justify-end gap-2 border-t border-border px-6 py-4">
           <button
             onClick={handleDeny}
-            className="px-4 py-2 rounded-md text-sm border border-input hover:bg-accent transition-colors"
+            className="rounded-md border border-input px-4 py-2 text-[13px] transition-colors hover:bg-accent"
           >
-            Deny
+            拒绝
           </button>
           <button
             onClick={handleApprove}
-            className="px-4 py-2 rounded-md text-sm border border-input hover:bg-accent transition-colors"
+            className="rounded-md border border-input px-4 py-2 text-[13px] transition-colors hover:bg-accent"
           >
-            Approve
+            允许
           </button>
           <button
             onClick={handleApproveAll}
-            className="px-4 py-2 rounded-md text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            className="rounded-md bg-primary px-4 py-2 text-[13px] text-primary-foreground transition-opacity hover:opacity-90"
           >
-            Always Allow This Tool
+            始终允许此工具
           </button>
         </div>
 
         {/* Counter */}
         {pendingRequests.length > 1 && (
-          <div className="text-xs text-muted-foreground text-center pb-3">
-            {pendingRequests.length} more pending
+          <div className="pb-3 text-center text-xs text-muted-foreground">
+            还有 {pendingRequests.length - 1} 个待处理
           </div>
         )}
       </div>

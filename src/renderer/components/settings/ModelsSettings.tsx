@@ -27,47 +27,47 @@ export function ModelsSettings() {
   };
 
   const providerLabels: Record<ModelProvider, string> = {
-    'openai-compatible': 'OpenAI Compatible',
+    'openai-compatible': 'OpenAI 兼容',
     'anthropic': 'Anthropic',
-    'ollama': 'Ollama (Local)',
-    'ark': 'Ark (豆包)'
+    'ollama': 'Ollama（本地）',
+    'ark': 'Ark（豆包）'
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-medium mb-1">Models</h3>
+          <h3 className="text-base font-medium mb-1">模型</h3>
           <p className="text-sm text-muted-foreground">
-            Configure AI models for the agent to use.
+            配置 Agent 可用的 AI 模型。
           </p>
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
           className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 transition-opacity"
         >
-          + Add Model
+          + 添加模型
         </button>
       </div>
 
       {showAddForm && (
         <div className="bg-background border border-border rounded-lg p-4 space-y-4">
-          <h4 className="text-sm font-medium">Add New Model</h4>
+          <h4 className="text-sm font-medium">添加新模型</h4>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Display Name</label>
+              <label className="text-xs text-muted-foreground block mb-1">显示名称</label>
               <input
                 type="text"
                 value={newModel.name}
                 onChange={(e) => setNewModel({ ...newModel, name: e.target.value })}
-                placeholder="My DeepSeek"
+                placeholder="我的 DeepSeek"
                 className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
               />
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Provider</label>
+              <label className="text-xs text-muted-foreground block mb-1">提供商</label>
               <select
                 value={newModel.provider}
                 onChange={(e) => setNewModel({ ...newModel, provider: e.target.value as ModelProvider })}
@@ -80,7 +80,7 @@ export function ModelsSettings() {
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Model ID</label>
+              <label className="text-xs text-muted-foreground block mb-1">模型 ID</label>
               <input
                 type="text"
                 value={newModel.model}
@@ -91,7 +91,7 @@ export function ModelsSettings() {
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Base URL</label>
+              <label className="text-xs text-muted-foreground block mb-1">基础 URL</label>
               <input
                 type="text"
                 value={newModel.baseUrl}
@@ -102,7 +102,7 @@ export function ModelsSettings() {
             </div>
 
             <div className="col-span-2">
-              <label className="text-xs text-muted-foreground block mb-1">API Key</label>
+              <label className="text-xs text-muted-foreground block mb-1">API 密钥</label>
               <input
                 type="password"
                 value={newModel.apiKey}
@@ -114,7 +114,7 @@ export function ModelsSettings() {
 
             <div className="col-span-2">
               <label className="text-xs text-muted-foreground block mb-1">
-                Embedding Model (optional — enables semantic memory search)
+                嵌入模型（可选 — 启用语义记忆检索）
               </label>
               <input
                 type="text"
@@ -131,13 +131,13 @@ export function ModelsSettings() {
               onClick={() => setShowAddForm(false)}
               className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
             >
-              Cancel
+              取消
             </button>
             <button
               onClick={handleAdd}
               className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 transition-opacity"
             >
-              Add
+              添加
             </button>
           </div>
         </div>
@@ -147,7 +147,7 @@ export function ModelsSettings() {
       <div className="space-y-2">
         {models.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground text-sm">
-            No models configured. Add one to get started.
+            尚未配置任何模型。添加一个即可开始。
           </div>
         ) : (
           models.map((model) => (
@@ -177,7 +177,7 @@ function ModelItem({
   onDelete: () => void;
 }) {
   const providerLabels: Record<ModelProvider, string> = {
-    'openai-compatible': 'OpenAI Compatible',
+    'openai-compatible': 'OpenAI 兼容',
     'anthropic': 'Anthropic',
     'ollama': 'Ollama',
     'ark': 'Ark'
@@ -208,7 +208,7 @@ function ModelItem({
     }`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-green-400" />
+          <div className="w-2 h-2 rounded-full bg-emerald-500" />
           <div>
             <div className="text-sm font-medium">{model.name}</div>
             <div className="text-xs text-muted-foreground">
@@ -218,13 +218,13 @@ function ModelItem({
         </div>
         <div className="flex items-center gap-2">
           {isActive ? (
-            <span className="text-xs text-primary font-medium">Active</span>
+            <span className="text-xs text-primary font-medium">当前</span>
           ) : (
             <button
               onClick={onSetActive}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              Set Active
+              设为当前
             </button>
           )}
           <button
@@ -232,13 +232,13 @@ function ModelItem({
             disabled={testing}
             className="text-xs px-2 py-1 rounded border border-input hover:bg-accent disabled:opacity-50 transition-colors"
           >
-            {testing ? 'Testing…' : 'Test'}
+            {testing ? '测试中…' : '测试'}
           </button>
           <button
             onClick={onDelete}
-            className="text-xs text-red-400 hover:text-red-300 transition-colors"
+            className="text-xs text-destructive hover:text-destructive/80 transition-colors"
           >
-            Delete
+            删除
           </button>
         </div>
       </div>
@@ -247,8 +247,8 @@ function ModelItem({
         <div
           className={`mt-2 rounded-md px-3 py-2 text-xs ${
             testResult.ok
-              ? 'bg-green-500/10 border border-green-500/30 text-green-400'
-              : 'bg-red-500/10 border border-red-500/30 text-red-400'
+              ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-600'
+              : 'bg-destructive/10 border border-destructive/30 text-destructive'
           }`}
         >
           <div className="font-medium">

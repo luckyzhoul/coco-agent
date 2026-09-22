@@ -42,26 +42,26 @@ export function McpSettings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-medium mb-1">MCP Servers</h3>
+          <h3 className="text-base font-medium mb-1">MCP 服务</h3>
           <p className="text-sm text-muted-foreground">
-            Manage Model Context Protocol servers.
+            管理 Model Context Protocol 服务。
           </p>
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
           className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 transition-opacity"
         >
-          + Add Server
+          + 添加服务
         </button>
       </div>
 
       {showAddForm && (
         <div className="bg-background border border-border rounded-lg p-4 space-y-4">
-          <h4 className="text-sm font-medium">Add MCP Server</h4>
+          <h4 className="text-sm font-medium">添加 MCP 服务</h4>
 
           <div className="space-y-4">
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Name</label>
+              <label className="text-xs text-muted-foreground block mb-1">名称</label>
               <input
                 type="text"
                 value={newServer.name}
@@ -72,13 +72,13 @@ export function McpSettings() {
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Transport Type</label>
+              <label className="text-xs text-muted-foreground block mb-1">传输类型</label>
               <select
                 value={newServer.type}
                 onChange={(e) => setNewServer({ ...newServer, type: e.target.value as MCPConfig['type'] })}
                 className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
               >
-                <option value="stdio">Standard IO (local process)</option>
+                <option value="stdio">标准 IO（本地进程）</option>
                 <option value="sse">Server-Sent Events</option>
                 <option value="streamable-http">Streamable HTTP</option>
               </select>
@@ -87,7 +87,7 @@ export function McpSettings() {
             {newServer.type === 'stdio' && (
               <>
                 <div>
-                  <label className="text-xs text-muted-foreground block mb-1">Command</label>
+                  <label className="text-xs text-muted-foreground block mb-1">命令</label>
                   <input
                     type="text"
                     value={newServer.command}
@@ -97,7 +97,7 @@ export function McpSettings() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground block mb-1">Arguments (space-separated)</label>
+                  <label className="text-xs text-muted-foreground block mb-1">参数（以空格分隔）</label>
                   <input
                     type="text"
                     value={newServer.args}
@@ -118,7 +118,7 @@ export function McpSettings() {
                 className="w-4 h-4"
               />
               <label htmlFor="mcp-enabled" className="text-sm">
-                Enable on startup
+                启动时启用
               </label>
             </div>
           </div>
@@ -128,13 +128,13 @@ export function McpSettings() {
               onClick={() => setShowAddForm(false)}
               className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
             >
-              Cancel
+              取消
             </button>
             <button
               onClick={handleAdd}
               className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 transition-opacity"
             >
-              Add
+              添加
             </button>
           </div>
         </div>
@@ -144,7 +144,7 @@ export function McpSettings() {
       <div className="space-y-2">
         {mcpServers.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground text-sm">
-            No MCP servers configured.
+            尚未配置任何 MCP 服务。
           </div>
         ) : (
           mcpServers.map((server) => (
@@ -185,8 +185,8 @@ function McpServerItem({
     }
   };
 
-  const statusColor = status === 'running' ? 'bg-green-400' : 'bg-muted';
-  const statusText = status === 'running' ? 'Running' : 'Stopped';
+  const statusColor = status === 'running' ? 'bg-emerald-500' : 'bg-muted';
+  const statusText = status === 'running' ? '运行中' : '已停止';
 
   return (
     <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-background">
@@ -205,13 +205,13 @@ function McpServerItem({
           onClick={handleToggle}
           className="text-xs px-2 py-1 rounded border border-input hover:bg-accent transition-colors"
         >
-          {status === 'running' ? 'Stop' : 'Start'}
+          {status === 'running' ? '停止' : '启动'}
         </button>
         <button
           onClick={onDelete}
-          className="text-xs text-red-400 hover:text-red-300 transition-colors"
+          className="text-xs text-destructive hover:text-destructive/80 transition-colors"
         >
-          Delete
+          删除
         </button>
       </div>
     </div>

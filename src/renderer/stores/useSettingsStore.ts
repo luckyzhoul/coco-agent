@@ -10,6 +10,7 @@ interface SettingsState {
   isLoading: boolean;
 
   loadSettings: () => Promise<void>;
+  updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
   loadModels: () => Promise<void>;
   loadMcpServers: () => Promise<void>;
   loadSkills: () => Promise<void>;
@@ -38,6 +39,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   loadSettings: async () => {
     const settings = await window.electronAPI.settings.get();
+    set({ settings });
+  },
+
+  updateSettings: async (partial) => {
+    const settings = await window.electronAPI.settings.set(partial);
     set({ settings });
   },
 

@@ -1,4 +1,6 @@
 /** @type {import('tailwindcss').Config} */
+const withAlpha = (variable) => `hsl(var(${variable}) / <alpha-value>)`;
+
 export default {
   content: [
     './src/renderer/**/*.{js,ts,jsx,tsx,html}',
@@ -7,18 +9,33 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: 'hsl(240 10% 3.9%)',
-        foreground: 'hsl(0 0% 98%)',
-        card: 'hsl(240 6% 10%)',
-        'card-foreground': 'hsl(0 0% 98%)',
-        border: 'hsl(240 3.7% 15.9%)',
-        input: 'hsl(240 3.7% 15.9%)',
-        primary: 'hsl(240 5.9% 90%)',
-        'primary-foreground': 'hsl(240 5.9% 10%)',
-        secondary: 'hsl(240 3.7% 15.9%)',
-        muted: 'hsl(240 3.7% 15.9%)',
-        'muted-foreground': 'hsl(240 5% 64.9%)',
-        accent: 'hsl(240 3.7% 15.9%)'
+        background: withAlpha('--background'),
+        foreground: withAlpha('--foreground'),
+        card: withAlpha('--card'),
+        'card-foreground': withAlpha('--card-foreground'),
+        panel: withAlpha('--panel'),
+        'panel-foreground': withAlpha('--panel-foreground'),
+        border: withAlpha('--border'),
+        input: withAlpha('--input'),
+        ring: withAlpha('--ring'),
+        primary: withAlpha('--primary'),
+        'primary-foreground': withAlpha('--primary-foreground'),
+        secondary: withAlpha('--secondary'),
+        'secondary-foreground': withAlpha('--secondary-foreground'),
+        muted: withAlpha('--muted'),
+        'muted-foreground': withAlpha('--muted-foreground'),
+        accent: withAlpha('--accent'),
+        'accent-foreground': withAlpha('--accent-foreground'),
+        destructive: withAlpha('--destructive'),
+        'destructive-foreground': withAlpha('--destructive-foreground')
+      },
+      fontFamily: {
+        sans: ['var(--font-sans-cjk)'],
+        serif: ['var(--font-serif-cjk)']
+      },
+      boxShadow: {
+        soft: 'var(--shadow-soft)',
+        lifted: 'var(--shadow-lifted)'
       },
       borderRadius: {
         lg: '0.5rem',

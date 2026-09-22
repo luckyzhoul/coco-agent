@@ -27,3 +27,5 @@ npm-debug.log*
 # Agent data
 .cocoagent/
 sessions/
+
+.claude/worktrees/

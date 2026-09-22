@@ -31,6 +31,7 @@ export interface SessionInfo {
   createdAt: number;
   updatedAt: number;
   messageCount: number;
+  pinned: boolean;
 }
 
 export interface AgentStatus {
@@ -42,6 +43,29 @@ export interface AgentStatus {
 export interface WorkspaceInfo {
   path: string;
   name: string;
+}
+
+export interface FileEntry {
+  name: string;
+  path: string;
+  isDir: boolean;
+  size: number;
+  mtime: number;
+}
+
+export interface FileReadResult {
+  path: string;
+  /** Text content; empty when `binary` is true. */
+  content: string;
+  binary: boolean;
+  /** True when the file exceeded the preview size limit and was not read. */
+  tooLarge: boolean;
+  mtime: number;
+}
+
+export interface FileWriteResult {
+  path: string;
+  mtime: number;
 }
 
 // Model & Provider types
@@ -97,6 +121,12 @@ export interface AppSettings {
 
   // Agents
   activeAgentId: string | null;
+
+  // Project space
+  /** Where new sessions live by default. `~` is expanded. */
+  defaultWorkspacePath: string;
+  /** Last project space in use, restored on launch. */
+  lastWorkspacePath: string;
 
   // Models
   models: ModelConfig[];

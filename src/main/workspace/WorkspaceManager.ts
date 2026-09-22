@@ -3,6 +3,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { WorkspaceInfo } from '../../shared/types';
 import { getDb } from '../db';
+import { settingsManager } from '../settings/SettingsManager';
+import { builtinDefaultPath, expandHome } from './spacePaths';
 
 const MAX_RECENT = 10;
 
@@ -41,19 +43,62 @@ export class WorkspaceManager {
     }
   }
 
-  private validatePath(dirPath: string): boolean {
+  private isDirectory(dirPath: string): boolean {
     try {
-      const stat = fs.statSync(dirPath);
-      return stat.isDirectory();
+      return fs.statSync(dirPath).isDirectory();
     } catch {
       return false;
     }
   }
 
+  /** Create the directory (and parents) if missing; returns false on failure. */
+  private ensureDir(dirPath: string): boolean {
+    try {
+      fs.mkdirSync(dirPath, { recursive: true });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private toInfo(dirPath: string): WorkspaceInfo {
+    return { path: dirPath, name: path.basename(dirPath) || dirPath };
+  }
+
+  /** The configured default project space, falling back to the built-in one. */
+  getDefaultPath(): string {
+    const configured = expandHome(settingsManager.get().defaultWorkspacePath);
+    return configured || builtinDefaultPath();
+  }
+
+  /** The default project space, created on disk if needed. */
+  ensureDefault(): WorkspaceInfo {
+    const dirPath = this.getDefaultPath();
+    this.ensureDir(dirPath);
+    return this.toInfo(dirPath);
+  }
+
+  /**
+   * Restore the project space on launch: last used if still valid, otherwise
+   * the default (created if missing). Called once from the main entry point.
+   */
+  init(): WorkspaceInfo {
+    const last = settingsManager.get().lastWorkspacePath;
+    if (last && this.isDirectory(last)) {
+      const info = this.toInfo(last);
+      this.setCurrent(info);
+      return info;
+    }
+    const info = this.ensureDefault();
+    this.setCurrent(info);
+    return info;
+  }
+
   async selectDirectory(parentWindow: Electron.BrowserWindow | null): Promise<WorkspaceInfo | null> {
     const result = await dialog.showOpenDialog(parentWindow!, {
-      title: 'Select Workspace Directory',
-      properties: ['openDirectory']
+      title: '选择项目空间目录',
+      buttonLabel: '使用此目录',
+      properties: ['openDirectory', 'createDirectory']
     });
 
     if (result.canceled || result.filePaths.length === 0) {
@@ -61,17 +106,35 @@ export class WorkspaceManager {
     }
 
     const dirPath = result.filePaths[0];
-    if (!this.validatePath(dirPath)) {
-      throw new Error(`Invalid directory: ${dirPath}`);
+    if (!this.isDirectory(dirPath)) {
+      throw new Error(`无效的目录：${dirPath}`);
     }
 
-    const info: WorkspaceInfo = {
-      path: dirPath,
-      name: path.basename(dirPath) || dirPath
-    };
+    const info = this.toInfo(dirPath);
+    this.setCurrent(info);
+    return info;
+  }
 
-    this.currentWorkspace = info;
-    this.addToRecent(info);
+  /** Point the app at a new project space (used by the space switcher). */
+  setCurrentPath(dirPath: string): WorkspaceInfo {
+    const expanded = expandHome(dirPath);
+    if (!this.ensureDir(expanded) || !this.isDirectory(expanded)) {
+      throw new Error(`无法使用该目录：${dirPath}`);
+    }
+    const info = this.toInfo(expanded);
+    this.setCurrent(info);
+    return info;
+  }
+
+  /** Change the default project space used by new sessions. */
+  setDefault(dirPath: string): WorkspaceInfo {
+    const expanded = expandHome(dirPath);
+    if (!this.ensureDir(expanded) || !this.isDirectory(expanded)) {
+      throw new Error(`无法使用该目录：${dirPath}`);
+    }
+    settingsManager.set({ defaultWorkspacePath: expanded });
+    const info = this.toInfo(expanded);
+    this.setCurrent(info);
     return info;
   }
 
@@ -80,10 +143,11 @@ export class WorkspaceManager {
   }
 
   setCurrent(workspace: WorkspaceInfo): void {
-    if (!this.validatePath(workspace.path)) {
-      throw new Error(`Invalid workspace path: ${workspace.path}`);
+    if (!this.isDirectory(workspace.path)) {
+      throw new Error(`无效的项目空间路径：${workspace.path}`);
     }
     this.currentWorkspace = workspace;
+    settingsManager.set({ lastWorkspacePath: workspace.path });
     this.addToRecent(workspace);
   }
 

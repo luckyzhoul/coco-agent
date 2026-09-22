@@ -2,10 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * 暖米纸明亮主题（默认）。所有颜色以 HSL 分量存放，供 tailwind.config.js
+ * 以 hsl(var(--x) / <alpha-value>) 消费。.dark 覆盖同名变量。
+ */
 @layer base {
+  :root {
+    --background: 42 38% 97%;
+    --foreground: 30 10% 20%;
+
+    --card: 40 33% 95%;
+    --card-foreground: 30 10% 20%;
+
+    --panel: 42 36% 96%;
+    --panel-foreground: 30 10% 20%;
+
+    --border: 38 24% 87%;
+    --input: 38 24% 85%;
+    --ring: 213 26% 55%;
+
+    --primary: 213 28% 45%;
+    --primary-foreground: 40 45% 98%;
+
+    --secondary: 40 26% 92%;
+    --secondary-foreground: 30 10% 28%;
+
+    --muted: 40 22% 91%;
+    --muted-foreground: 33 10% 46%;
+
+    --accent: 33 48% 88%;
+    --accent-foreground: 28 32% 30%;
+
+    --destructive: 4 58% 52%;
+    --destructive-foreground: 40 45% 98%;
+
+    --shadow-soft: 0 1px 2px hsl(30 20% 40% / 0.05), 0 8px 24px -12px hsl(30 25% 30% / 0.12);
+    --shadow-lifted: 0 2px 4px hsl(30 20% 40% / 0.06), 0 16px 40px -16px hsl(30 25% 30% / 0.18);
+
+    --font-sans-cjk: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC',
+      system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-serif-cjk: 'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC', 'Noto Serif SC',
+      'SimSun', Georgia, serif;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 6% 10%;
+    --card-foreground: 0 0% 98%;
+
+    --panel: 240 8% 7%;
+    --panel-foreground: 0 0% 98%;
+
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 5% 64.9%;
+
+    --primary: 240 5.9% 90%;
+    --primary-foreground: 240 5.9% 10%;
+
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --shadow-soft: 0 1px 2px hsl(0 0% 0% / 0.4), 0 8px 24px -12px hsl(0 0% 0% / 0.6);
+    --shadow-lifted: 0 2px 4px hsl(0 0% 0% / 0.45), 0 16px 40px -16px hsl(0 0% 0% / 0.7);
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans-cjk);
   }
 
   #root {
@@ -27,5 +102,39 @@
 
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-muted-foreground/30;
+  }
+}
+
+@layer components {
+  /* 纸感卡片：柔和阴影 + 细边框，替代重投影 */
+  .paper-card {
+    @apply rounded-xl border border-border bg-card;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .paper-raised {
+    @apply rounded-xl border border-border bg-card;
+    box-shadow: var(--shadow-lifted);
+  }
+
+  /* 中文衬线标题（参考图的「书桌」「笺」题头风格） */
+  .title-serif {
+    font-family: var(--font-serif-cjk);
+    @apply tracking-wide;
+  }
+
+  /* 题头两侧细线 */
+  .rule-title::before,
+  .rule-title::after {
+    content: '';
+    @apply inline-block h-px w-6 align-middle bg-border;
+  }
+
+  .rule-title::before {
+    @apply mr-3;
+  }
+
+  .rule-title::after {
+    @apply ml-3;
   }
 }

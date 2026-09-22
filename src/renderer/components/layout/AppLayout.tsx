@@ -1,5 +1,6 @@
 import { Titlebar } from './Titlebar';
 import { Sidebar } from './Sidebar';
+import { SpacePanel } from '../space/SpacePanel';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ export function AppLayout({ children, onOpenSettings }: AppLayoutProps) {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar onOpenSettings={onOpenSettings} />
         <main className="flex-1 overflow-hidden">{children}</main>
+        <SpacePanel />
       </div>
     </div>
   );

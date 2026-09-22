@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   agent_id       TEXT,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL,
-  message_count  INTEGER NOT NULL DEFAULT 0
+  message_count  INTEGER NOT NULL DEFAULT 0,
+  pinned         INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -71,6 +72,13 @@ export function initDb(): DatabaseSync {
   db.exec('PRAGMA journal_mode = WAL;');
   db.exec('PRAGMA foreign_keys = ON;');
   db.exec(SCHEMA);
+  // Databases created before pinning existed keep the old column set; add it
+  // on sight. Existing dev data is disposable, so no version table.
+  try {
+    db.exec('ALTER TABLE sessions ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
+  } catch {
+    // Column already present.
+  }
   return db;
 }
 

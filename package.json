@@ -16,7 +16,7 @@
     "dist:win": "electron-vite build && electron-builder --win",
     "dist:mac": "electron-vite build && electron-builder --mac",
     "repair:electron": "node scripts/repair-electron.mjs",
-    "test": "jiti scripts/test-bm25.ts && jiti scripts/test-persona.ts && jiti scripts/test-tiering.ts && jiti scripts/test-pathguard.ts && node scripts/test-model-config.mjs"
+    "test": "jiti scripts/test-bm25.ts && jiti scripts/test-persona.ts && jiti scripts/test-tiering.ts && jiti scripts/test-pathguard.ts && jiti scripts/test-fileservice.ts && node scripts/test-model-config.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

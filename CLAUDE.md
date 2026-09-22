@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目是什么
 
-CocoAgent 是一个**本地桌面 AI 智能体**：Electron（主进程）+ React（渲染进程）+ Pi Agent SDK（`@earendil-works/pi-coding-agent`）驱动的完整 Agent Harness，能力包括文件操作、MCP 工具、Skills、多 Agent/人格、分层记忆、浏览器/桌面自动化（Browser Use / Computer Use）、路径级安全、自动更新。打包产物为 AppImage/deb（Windows 为 nsis，macOS 为 dmg）。
+CocoAgent 是一个**本地桌面 AI 智能体**：Electron（主进程）+ React（渲染进程）+ Pi Agent SDK（`@earendil-works/pi-coding-agent`）驱动的完整 Agent Harness，能力包括文件操作、MCP 工具、Skills、多 Agent/人格、分层记忆、浏览器/桌面自动化（Browser Use / Computer Use）、路径级安全、自动更新。打包产物为 AppImage/deb。主要为中文用户开发，界面语言使用中文。
 
 ## 常用命令
 
@@ -26,8 +26,8 @@ pnpm repair:electron  # pnpm 重链可能抹掉 electron 二进制，此脚本�
 三个进程 + 一份共享层，全部 TypeScript：
 
 - **`src/main/`** — Electron 主进程（Node），持有 Pi SDK 的 `AgentSession` 和所有业务单例。入口 `index.ts`，IPC 统一在 `ipc/index.ts` 注册。
-- **`src/renderer/`** — React 渲染进程。Zustand 管理状态（`stores/`），通过 `window.electronAPI` 与主进程通信。
-- **`src/main/preload.ts`** — ContextBridge 暴露 `electronAPI`（`contextIsolation: true`，`nodeIntegration: false`）。渲染进程**只能**通过这里定义的命名空间（`agent/agents/security/settings/models/mcp/skills/browser/computer/app/update/toolApproval`）访问能力。改 preload 后记得同步 `shared/ipc-channels.ts` 与类型。
+- **`src/renderer/`** — React 渲染进程。Zustand 管理状态（`stores/`），通过 `window.electronAPI` 与主进程通信。三栏布局：`components/layout/`（Sidebar 会话时间线）+ `components/chat/` + `components/space/`（右侧项目空间面板，状态在 `stores/useSpaceStore.ts`）。
+- **`src/main/preload.ts`** — ContextBridge 暴露 `electronAPI`（`contextIsolation: true`，`nodeIntegration: false`）。渲染进程**只能**通过这里定义的命名空间（`agent/agents/security/settings/models/mcp/skills/browser/computer/app/update/toolApproval/workspace`）访问能力。改 preload 后记得同步 `shared/ipc-channels.ts` 与类型。
 - **`src/shared/`** — 类型定义（`types.ts`）和 IPC 通道名常量（`ipc-channels.ts`），三个进程共用。
 
 核心模块（`src/main/` 下，均为导出单例 `export const x = new X()`）：
@@ -66,3 +66,11 @@ pnpm repair:electron  # pnpm 重链可能抹掉 electron 二进制，此脚本�
 10. **中文/tokenization**：`memory/tokenizer.ts` 用 CJK bigram（无词库依赖）。改搜索相关代码时保持拉丁停用词 + bigram 语义，并跑 `scripts/test-bm25.ts`。
 
 11. **Agent 即文件夹**：`${COCO_HOME}/agents/<id>/{persona.md, skills/}`，DB 只存注册表。备份 = 拷目录。删 Agent 级联删其 sessions/memories，且至少保留一个、`main` 不可删。
+
+12. **项目空间与会话绑定**：默认空间 `~/Desktop/CocoSpace`（settings 的 `defaultWorkspacePath`，`~` 会展开；无 Desktop 时降级 `~/CocoSpace`），`workspaceManager.init()` 在窗口创建前跑，按 `lastWorkspacePath` 恢复。**`sessions.workspace_path` 是会话绑定的唯一真相**：新建会话取「当前空间」（选择器在**新建对话页**，不在侧边栏），**切会话必须跟着切空间**——`switchSession` 会同步 `workspaceManager.setCurrent`，并经 `AGENT_SWITCH_SESSION` 把 session meta **return 给渲染层**（漏 return 会导致面板不跟随，这是「切对话没换目录」事故的根因）。右侧面板切空间走 `agent.rebindWorkspace` 重绑当前会话。面板展示的空间与 Pi 的 cwd 必须始终一致。
+
+13. **右侧文件面板的读写走 `workspace/FileService.ts`**，不是直接 fs：先 `path.resolve` 到面板根，`realpath` 后校验仍在根内（防 symlink 逃逸），再交给 `pathPolicy.decide` 判权限。注意 `decide` 用的是**面板根**而非 `pathGuard.getWorkspaceRoot()`——后者是会话根，无会话时为空，会把空间内写入误判成越界。上限 2 MB、二进制识别、保存前 mtime 比对。
+
+14. **主题是 CSS 变量**：`styles/globals.css` 的 `:root`（暖米纸亮色，默认）与 `.dark` 两套 HSL 变量，`tailwind.config.js` 全部映射为 `hsl(var(--x) / <alpha-value>)`。改配色只动 globals.css，别在组件里写死 `text-red-400` 这类暗色调色值。主题 class 由 `App.tsx` 按 `settings.theme` 切；`index.html` 不要写死 `class="dark"`。界面文案一律中文。
+
+15. **`electron-vite@5` 注入的是 `ELECTRON_RENDERER_URL`**（旧版才是 `VITE_DEV_SERVER_URL`）。`index.ts` 两个都读。只认后者会让 `pnpm dev` 静默加载 `out/renderer` 的旧构建，表现为「改了代码界面没变、热重载失效」。

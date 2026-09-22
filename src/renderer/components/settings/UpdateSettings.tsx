@@ -51,21 +51,21 @@ export function UpdateSettings() {
 
   const stateColor: Record<string, string> = {
     idle: 'text-muted-foreground',
-    checking: 'text-blue-400',
-    available: 'text-yellow-400',
-    'up-to-date': 'text-green-400',
-    downloading: 'text-blue-400',
-    downloaded: 'text-green-400',
-    error: 'text-red-400',
+    checking: 'text-primary',
+    available: 'text-amber-600',
+    'up-to-date': 'text-emerald-600',
+    downloading: 'text-primary',
+    downloaded: 'text-emerald-600',
+    error: 'text-destructive',
     unavailable: 'text-muted-foreground'
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-base font-medium mb-1">Updates</h3>
+        <h3 className="text-base font-medium mb-1">更新</h3>
         <p className="text-sm text-muted-foreground">
-          CocoAgent checks GitHub Releases for new versions.
+          CocoAgent 会从 GitHub Releases 检查新版本。
         </p>
       </div>
 
@@ -74,15 +74,15 @@ export function UpdateSettings() {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm">
-              Current version:{' '}
+              当前版本：{' '}
               <span className="font-mono">{status?.currentVersion || '—'}</span>
             </div>
             <div className={`text-sm mt-1 ${stateColor[status?.state || 'idle'] || ''}`}>
-              {status?.message || 'Ready.'}
+              {status?.message || '就绪。'}
             </div>
             {status && !status.packaged && (
               <div className="text-xs text-muted-foreground mt-1">
-                Auto-update is disabled in development builds.
+                开发版本中已禁用自动更新。
               </div>
             )}
           </div>
@@ -93,7 +93,7 @@ export function UpdateSettings() {
                 onClick={() => window.electronAPI.update.quitAndInstall()}
                 className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 transition-opacity"
               >
-                Restart & Install
+                重启并安装
               </button>
             ) : status?.state === 'available' ? (
               <button
@@ -101,7 +101,7 @@ export function UpdateSettings() {
                 disabled={busy}
                 className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
-                {busy ? 'Downloading…' : 'Download Update'}
+                {busy ? '下载中…' : '下载更新'}
               </button>
             ) : (
               <button
@@ -109,7 +109,7 @@ export function UpdateSettings() {
                 disabled={busy || !status?.packaged}
                 className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent disabled:opacity-50 transition-colors"
               >
-                {busy ? 'Checking…' : 'Check for Updates'}
+                {busy ? '检查中…' : '检查更新'}
               </button>
             )}
           </div>
@@ -127,11 +127,11 @@ export function UpdateSettings() {
 
       {/* Feed override */}
       <div className="bg-background border border-border rounded-lg p-4 space-y-3">
-        <div className="text-sm font-medium">Custom Update Feed</div>
+        <div className="text-sm font-medium">自定义更新源</div>
         <p className="text-xs text-muted-foreground">
-          Leave empty to use the default GitHub Releases feed. Set a URL to use a self-hosted
-          generic feed (the server must expose <code className="bg-muted px-1 rounded">latest-linux.yml</code>{' '}
-          and the matching artifacts).
+          留空则使用默认的 GitHub Releases 源。填入 URL 可使用自建的通用源（服务器需提供{' '}
+          <code className="bg-muted px-1 rounded">latest-linux.yml</code>{' '}
+          及对应的构建产物）。
         </p>
         <div className="flex gap-2">
           <input
@@ -145,7 +145,7 @@ export function UpdateSettings() {
             onClick={handleSaveFeed}
             className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
           >
-            Save
+            保存
           </button>
         </div>
       </div>

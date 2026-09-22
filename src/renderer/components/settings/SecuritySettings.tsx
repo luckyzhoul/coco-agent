@@ -1,20 +1,21 @@
 import { useEffect, useState } from 'react';
 import type { SecurityLevel } from '@shared/types';
+import { useSettingsStore } from '../../stores/useSettingsStore';
 
 const LEVEL_INFO: Record<SecurityLevel, { label: string; detail: string }> = {
   readonly: {
-    label: 'Read-only',
+    label: '只读',
     detail:
-      'The agent gets no write, edit, or shell tools at all — it physically cannot modify files.'
+      'Agent 完全不会获得写入、编辑或 shell 工具 — 它根本无法修改文件。'
   },
   workspace: {
-    label: 'Workspace (recommended)',
+    label: '项目空间（推荐）',
     detail:
-      'File tools are scoped to the selected workspace. The CocoAgent data directory stays writable.'
+      '文件工具被限制在选定的项目空间内。CocoAgent 数据目录仍可写。'
   },
   full: {
-    label: 'Full access',
-    detail: 'No path restrictions. Dangerous tool calls still require your approval.'
+    label: '完全访问',
+    detail: '不限制路径。危险工具调用仍需你批准。'
   }
 };
 
@@ -41,6 +42,8 @@ export function SecuritySettings() {
     try {
       const applied = await window.electronAPI.security.setLevel(next);
       setLevel(applied);
+      // Refresh the shared settings so the space panel reflects the new level.
+      await useSettingsStore.getState().loadSettings();
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -51,15 +54,14 @@ export function SecuritySettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-base font-medium mb-1">Security</h3>
+        <h3 className="text-base font-medium mb-1">安全</h3>
         <p className="text-sm text-muted-foreground">
-          Controls what the agent is allowed to do on your filesystem. Changes take effect when
-          the next session starts.
+          控制 Agent 可以在你的文件系统上做什么。更改将在下一个会话启动时生效。
         </p>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -80,7 +82,7 @@ export function SecuritySettings() {
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{info.label}</span>
-                {active && <span className="text-xs text-primary">Current</span>}
+                {active && <span className="text-xs text-primary">当前</span>}
               </div>
               <p className="text-xs text-muted-foreground mt-1">{info.detail}</p>
             </button>
@@ -89,22 +91,20 @@ export function SecuritySettings() {
       </div>
 
       <div className="bg-background border border-border rounded-lg p-4 text-xs text-muted-foreground space-y-1">
-        <div className="font-medium text-foreground text-sm mb-1">Enforcement details</div>
+        <div className="font-medium text-foreground text-sm mb-1">执行细节</div>
         <div>
-          Write root:{' '}
-          <code className="bg-muted px-1 rounded">{workspaceRoot || '(no session yet)'}</code>
+          写入根目录：{' '}
+          <code className="bg-muted px-1 rounded">{workspaceRoot || '（尚无会话）'}</code>
         </div>
         <div>
-          Dangerous tool calls (shell commands, desktop input, browser actions) always ask for
-          approval regardless of level.
+          危险工具调用（shell 命令、桌面输入、浏览器操作）无论级别如何都会请求批准。
         </div>
         <div>
-          In `workspace` mode the shell tool can still reach outside the workspace — full
-          OS-level sandboxing is a known limitation, not yet implemented.
+          在 `workspace` 模式下，shell 工具仍可访问项目空间之外 — 完整的操作系统级沙箱是已知限制，尚未实现。
         </div>
       </div>
 
-      {saved && <div className="text-xs text-green-400">✓ Saved — applies to new sessions.</div>}
+      {saved && <div className="text-xs text-emerald-600">✓ 已保存 — 将应用于新会话。</div>}
     </div>
   );
 }
