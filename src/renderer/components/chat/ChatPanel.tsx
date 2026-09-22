@@ -4,7 +4,7 @@ import { useAgentEvent, useIpcRenderer } from '../../hooks/useIpcRenderer';
 import { MessageList } from './MessageList';
 import { ChatInput } from './ChatInput';
 import { AlertIcon, CloseIcon } from '../layout/icons';
-import type { Message, AgentStatus, ToolCall } from '@shared/types';
+import type { Message, AgentStatus, ToolCall, TurnSummary } from '@shared/types';
 
 export function ChatPanel() {
   const ipc = useIpcRenderer();
@@ -19,6 +19,13 @@ export function ChatPanel() {
   const isLoading = useChatStore((s) => s.isLoading);
   const updateToolCall = useChatStore((s) => s.updateToolCall);
   const updateToolResult = useChatStore((s) => s.updateToolResult);
+  const appendTextDelta = useChatStore((s) => s.appendTextDelta);
+  const appendThinkingDelta = useChatStore((s) => s.appendThinkingDelta);
+  const addToolCallPart = useChatStore((s) => s.addToolCallPart);
+  const updateToolCallPart = useChatStore((s) => s.updateToolCallPart);
+  const addFileDelivery = useChatStore((s) => s.addFileDelivery);
+  const addSummaryPart = useChatStore((s) => s.addSummaryPart);
+  const finishMessage = useChatStore((s) => s.finishMessage);
 
   useEffect(() => {
     if (activeSessionId) {
@@ -41,6 +48,7 @@ export function ChatPanel() {
     setError(err);
   });
 
+  // Legacy events (kept for backward compat)
   useAgentEvent('agentToolCall', (data) => {
     const typed = data as { toolCall: ToolCall; messageId: string };
     updateToolCall(typed.messageId, typed.toolCall);
@@ -50,6 +58,50 @@ export function ChatPanel() {
     'agentToolResult',
     (data: { toolCallId: string; output: string; status: string }) => {
       updateToolResult(data.toolCallId, data.output, data.status);
+    }
+  );
+
+  // Streaming delta events
+  useAgentEvent(
+    'agentMessageDelta',
+    (data: { messageId: string; partIndex: number; delta: string }) => {
+      appendTextDelta(data.messageId, data.partIndex, data.delta);
+    }
+  );
+
+  useAgentEvent(
+    'agentThinkingDelta',
+    (data: { messageId: string; partIndex: number; delta: string; state?: 'generating' | 'done' }) => {
+      appendThinkingDelta(data.messageId, data.partIndex, data.delta, data.state);
+    }
+  );
+
+  useAgentEvent(
+    'agentToolCallDelta',
+    (data: { messageId: string; partIndex: number; toolCall?: ToolCall; updates?: Partial<ToolCall> }) => {
+      if (data.toolCall) {
+        addToolCallPart(data.messageId, data.partIndex, data.toolCall);
+      } else if (data.updates) {
+        updateToolCallPart(data.messageId, data.partIndex, data.updates);
+      }
+    }
+  );
+
+  useAgentEvent(
+    'agentFileDelivery',
+    (data: { messageId: string; partIndex: number; file: { filePath: string; fileName: string; action: 'create' | 'edit'; fileSize?: number } }) => {
+      addFileDelivery(data.messageId, data.partIndex, data.file);
+    }
+  );
+
+  useAgentEvent('agentMessageEnd', (data: { messageId: string }) => {
+    finishMessage(data.messageId);
+  });
+
+  useAgentEvent(
+    'agentTurnEnd',
+    (data: { messageId: string; partIndex: number; summary: TurnSummary }) => {
+      addSummaryPart(data.messageId, data.partIndex, data.summary);
     }
   );
 

@@ -22,6 +22,7 @@
     "@types/node": "^24.13.6",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",
     "electron": "^44.4.3",
@@ -38,6 +39,9 @@
     "@earendil-works/pi-coding-agent": "^0.85.1",
     "@sinclair/typebox": "^0.34.52",
     "electron-updater": "^6.8.9",
+    "react-markdown": "^10.1.0",
+    "react-syntax-highlighter": "^16.1.1",
+    "remark-gfm": "^4.0.1",
     "zustand": "^5.0.15"
   },
   "desktopName": "CocoAgent"

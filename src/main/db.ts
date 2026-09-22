@@ -27,12 +27,14 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE TABLE IF NOT EXISTS messages (
-  id         TEXT PRIMARY KEY,
-  session_id TEXT NOT NULL,
-  role       TEXT NOT NULL,
-  content    TEXT NOT NULL DEFAULT '',
-  timestamp  INTEGER NOT NULL,
-  tool_calls TEXT
+  id           TEXT PRIMARY KEY,
+  session_id   TEXT NOT NULL,
+  role         TEXT NOT NULL,
+  content      TEXT NOT NULL DEFAULT '',
+  timestamp    INTEGER NOT NULL,
+  tool_calls   TEXT,
+  parts        TEXT,
+  turn_summary TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
 
@@ -84,6 +86,16 @@ export function initDb(): DatabaseSync {
   // on sight. Existing dev data is disposable, so no version table.
   try {
     db.exec('ALTER TABLE sessions ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
+  } catch {
+    // Column already present.
+  }
+  try {
+    db.exec('ALTER TABLE messages ADD COLUMN parts TEXT');
+  } catch {
+    // Column already present.
+  }
+  try {
+    db.exec('ALTER TABLE messages ADD COLUMN turn_summary TEXT');
   } catch {
     // Column already present.
   }

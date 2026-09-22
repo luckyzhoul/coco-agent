@@ -30,9 +30,27 @@ import {
   AGENT_EVENT_TOOL_CALL,
   AGENT_EVENT_TOOL_RESULT,
   AGENT_EVENT_STATUS,
-  AGENT_EVENT_ERROR
+  AGENT_EVENT_ERROR,
+  AGENT_EVENT_MESSAGE_DELTA,
+  AGENT_EVENT_THINKING_DELTA,
+  AGENT_EVENT_TOOL_CALL_DELTA,
+  AGENT_EVENT_MESSAGE_END,
+  AGENT_EVENT_FILE_DELIVERY,
+  AGENT_EVENT_TURN_END
 } from '../../shared/ipc-channels';
-import type { Message, ToolCall, AgentStatus, SessionInfo } from '../../shared/types';
+import type {
+  Message,
+  ToolCall,
+  AgentStatus,
+  SessionInfo,
+  MessagePart,
+  TextPart,
+  ThinkingPart,
+  ToolCallPart,
+  FileDeliveryPart,
+  TurnSummary
+} from '../../shared/types';
+import * as fs from 'node:fs';
 import {
   listSessions,
   createSessionMeta,
@@ -53,9 +71,23 @@ export class AgentRuntime {
   private status: AgentStatus = { sessionId: null, state: 'idle' };
   private mainWindow: BrowserWindow | null = null;
   private messageCount: number = 0;
-  private currentAssistantContent: string = '';
-  private activeToolCalls: Map<string, ToolCall> = new Map();
   private unsubscriber: (() => void) | null = null;
+
+  // Streaming state for the current assistant turn
+  private currentMessageId: string | null = null;
+  private currentParts: MessagePart[] = [];
+  private partIndexCounter: number = 0;
+  private currentTextPartIndex: number = -1;
+  private currentThinkingPartIndex: number = -1;
+  private pendingTextDelta: string = '';
+  private pendingThinkingDelta: string = '';
+  private deltaFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly FLUSH_INTERVAL_MS = 50;
+  private turnStartTime: number = 0;
+  private turnToolCount: number = 0;
+  private turnThinkingCount: number = 0;
+  // Backward compat: accumulate all tool calls for the current message
+  private activeToolCalls: Map<string, ToolCall> = new Map();
 
   setMainWindow(window: BrowserWindow | null): void {
     this.mainWindow = window;
@@ -71,6 +103,249 @@ export class AgentRuntime {
   private setStatus(status: Partial<AgentStatus>): void {
     this.status = { ...this.status, ...status };
     this.emit(AGENT_EVENT_STATUS, this.status);
+  }
+
+  private nextPartIndex(): number {
+    return this.partIndexCounter++;
+  }
+
+  private scheduleDeltaFlush(): void {
+    if (this.deltaFlushTimer) return;
+    this.deltaFlushTimer = setTimeout(() => {
+      this.flushDeltas();
+      this.deltaFlushTimer = null;
+    }, this.FLUSH_INTERVAL_MS);
+  }
+
+  private flushDeltas(): void {
+    const msgId = this.currentMessageId;
+    if (!msgId) return;
+
+    if (this.pendingTextDelta && this.currentTextPartIndex >= 0) {
+      const part = this.currentParts[this.currentTextPartIndex] as TextPart;
+      if (part && part.type === 'text') {
+        part.content += this.pendingTextDelta;
+        this.emit(AGENT_EVENT_MESSAGE_DELTA, {
+          messageId: msgId,
+          partIndex: this.currentTextPartIndex,
+          delta: this.pendingTextDelta
+        });
+      }
+      this.pendingTextDelta = '';
+    }
+
+    if (this.pendingThinkingDelta && this.currentThinkingPartIndex >= 0) {
+      const part = this.currentParts[this.currentThinkingPartIndex] as ThinkingPart;
+      if (part && part.type === 'thinking') {
+        part.content += this.pendingThinkingDelta;
+        this.emit(AGENT_EVENT_THINKING_DELTA, {
+          messageId: msgId,
+          partIndex: this.currentThinkingPartIndex,
+          delta: this.pendingThinkingDelta
+        });
+      }
+      this.pendingThinkingDelta = '';
+    }
+  }
+
+  private ensureTextPart(): void {
+    if (this.currentTextPartIndex >= 0) return;
+    const idx = this.nextPartIndex();
+    const part: TextPart = {
+      id: `text_${Date.now()}_${idx}`,
+      type: 'text',
+      index: idx,
+      content: '',
+      streaming: true
+    };
+    this.currentParts.push(part);
+    this.currentTextPartIndex = idx;
+  }
+
+  private endTextPart(): void {
+    if (this.currentTextPartIndex < 0) return;
+    const part = this.currentParts[this.currentTextPartIndex] as TextPart;
+    if (part) part.streaming = false;
+    this.currentTextPartIndex = -1;
+  }
+
+  private startThinkingPart(): void {
+    if (this.currentThinkingPartIndex >= 0) return;
+    this.endTextPart();
+    const idx = this.nextPartIndex();
+    const part: ThinkingPart = {
+      id: `think_${Date.now()}_${idx}`,
+      type: 'thinking',
+      index: idx,
+      content: '',
+      state: 'generating'
+    };
+    this.currentParts.push(part);
+    this.currentThinkingPartIndex = idx;
+    this.turnThinkingCount++;
+    // Notify renderer immediately so it can show "思考中..."
+    if (this.currentMessageId) {
+      this.emit(AGENT_EVENT_THINKING_DELTA, {
+        messageId: this.currentMessageId,
+        partIndex: idx,
+        delta: '',
+        state: 'generating' as const
+      });
+    }
+  }
+
+  private endThinkingPart(): void {
+    if (this.currentThinkingPartIndex < 0) return;
+    this.flushDeltas();
+    const part = this.currentParts[this.currentThinkingPartIndex] as ThinkingPart;
+    if (part) {
+      part.state = 'done';
+      if (this.currentMessageId) {
+        this.emit(AGENT_EVENT_THINKING_DELTA, {
+          messageId: this.currentMessageId,
+          partIndex: this.currentThinkingPartIndex,
+          delta: '',
+          state: 'done' as const
+        });
+      }
+    }
+    this.currentThinkingPartIndex = -1;
+  }
+
+  private addToolCallPart(toolCall: ToolCall): number {
+    this.endTextPart();
+    this.endThinkingPart();
+    const idx = this.nextPartIndex();
+    const part: ToolCallPart = {
+      id: `tool_${Date.now()}_${idx}`,
+      type: 'tool_call',
+      index: idx,
+      toolCall
+    };
+    this.currentParts.push(part);
+    this.turnToolCount++;
+    if (this.currentMessageId) {
+      this.emit(AGENT_EVENT_TOOL_CALL_DELTA, {
+        messageId: this.currentMessageId,
+        partIndex: idx,
+        toolCall
+      });
+    }
+    return idx;
+  }
+
+  private updateToolCallPartStatus(toolCallId: string, updates: Partial<ToolCall>): void {
+    const part = this.currentParts.find(
+      (p): p is ToolCallPart => p.type === 'tool_call' && p.toolCall.id === toolCallId
+    );
+    if (!part) return;
+    part.toolCall = { ...part.toolCall, ...updates };
+    if (this.currentMessageId) {
+      this.emit(AGENT_EVENT_TOOL_CALL_DELTA, {
+        messageId: this.currentMessageId,
+        partIndex: part.index,
+        updates
+      });
+    }
+  }
+
+  private addFileDeliveryPartIfApplicable(toolCall: ToolCall): void {
+    if (toolCall.status !== 'success') return;
+
+    let filePath: string | undefined;
+    let action: 'create' | 'edit' = 'create';
+
+    const name = toolCall.name.toLowerCase();
+    const input = toolCall.input as Record<string, unknown>;
+
+    // Pi built-in write/edit tools
+    if (name.includes('write') || name.includes('create_file')) {
+      filePath = typeof input.path === 'string' ? input.path :
+                 typeof input.file_path === 'string' ? input.file_path : undefined;
+      action = 'create';
+    } else if (name.includes('edit') || name.includes('apply_diff') || name.includes('patch')) {
+      filePath = typeof input.path === 'string' ? input.path :
+                 typeof input.file_path === 'string' ? input.file_path : undefined;
+      action = 'edit';
+    }
+
+    if (!filePath) return;
+
+    // Resolve relative to workspace (best-effort)
+    let fileSize: number | undefined;
+    try {
+      const stat = fs.statSync(filePath);
+      if (stat.isFile()) fileSize = stat.size;
+    } catch {
+      // file might not exist yet or path is relative; skip size
+    }
+
+    const fileName = filePath.split(/[\\/]/).pop() || filePath;
+    const idx = this.nextPartIndex();
+    const part: FileDeliveryPart = {
+      id: `file_${Date.now()}_${idx}`,
+      type: 'file_delivery',
+      index: idx,
+      filePath,
+      fileName,
+      action,
+      fileSize
+    };
+    this.currentParts.push(part);
+
+    if (this.currentMessageId) {
+      this.emit(AGENT_EVENT_FILE_DELIVERY, {
+        messageId: this.currentMessageId,
+        partIndex: idx,
+        file: {
+          filePath: part.filePath,
+          fileName: part.fileName,
+          action: part.action,
+          fileSize: part.fileSize
+        }
+      });
+    }
+  }
+
+  private resetTurnState(): void {
+    if (this.deltaFlushTimer) {
+      clearTimeout(this.deltaFlushTimer);
+      this.deltaFlushTimer = null;
+    }
+    this.currentMessageId = null;
+    this.currentParts = [];
+    this.partIndexCounter = 0;
+    this.currentTextPartIndex = -1;
+    this.currentThinkingPartIndex = -1;
+    this.pendingTextDelta = '';
+    this.pendingThinkingDelta = '';
+    this.activeToolCalls.clear();
+    this.turnToolCount = 0;
+    this.turnThinkingCount = 0;
+  }
+
+  private buildCurrentMessage(): Message {
+    // Make sure all streaming flags are off
+    const parts: MessagePart[] = this.currentParts.map((p) => {
+      if (p.type === 'text') return { ...p, streaming: false } as TextPart;
+      if (p.type === 'thinking') return { ...p, state: 'done' as const } as ThinkingPart;
+      return p;
+    });
+    const plainContent = parts
+      .filter((p) => p.type === 'text')
+      .map((p) => (p as TextPart).content)
+      .join('\n\n');
+    const toolCalls = parts
+      .filter((p) => p.type === 'tool_call')
+      .map((p) => (p as ToolCallPart).toolCall);
+    return {
+      id: `msg_${Date.now()}_a_${Math.random().toString(36).slice(2, 8)}`,
+      role: 'assistant',
+      content: plainContent,
+      timestamp: Date.now(),
+      parts,
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined
+    };
   }
 
   /**
@@ -204,8 +479,7 @@ export class AgentRuntime {
     this.activeSession = session;
     this.activeSessionId = sessionId;
     this.messageCount = 0;
-    this.currentAssistantContent = '';
-    this.activeToolCalls.clear();
+    this.resetTurnState();
 
     this.unsubscriber = session.subscribe((event: AgentSessionEvent) => {
       this.handleSessionEvent(event);
@@ -318,8 +592,7 @@ export class AgentRuntime {
     this.activeSession = session;
     this.activeSessionId = sessionId;
     this.messageCount = meta.messageCount;
-    this.currentAssistantContent = '';
-    this.activeToolCalls.clear();
+    this.resetTurnState();
 
     this.unsubscriber = session.subscribe((event: AgentSessionEvent) => {
       this.handleSessionEvent(event);
@@ -380,8 +653,8 @@ export class AgentRuntime {
     }
 
     // Reset assistant state for new turn
-    this.currentAssistantContent = '';
-    this.activeToolCalls.clear();
+    this.resetTurnState();
+    this.turnStartTime = Date.now();
 
     // Add user message
     const userMsg: Message = {
@@ -419,23 +692,87 @@ export class AgentRuntime {
     if (!this.activeSessionId) return;
 
     switch (event.type) {
-      case 'message_start':
-        this.setStatus({ state: 'thinking' });
-        this.currentAssistantContent = '';
+      case 'agent_start':
+        this.turnStartTime = Date.now();
+        // Create a single placeholder for the entire agent turn
+        this.currentMessageId = `msg_${Date.now()}_a`;
+        this.currentParts = [];
+        this.partIndexCounter = 0;
+        this.currentTextPartIndex = -1;
+        this.currentThinkingPartIndex = -1;
+        this.pendingTextDelta = '';
+        this.pendingThinkingDelta = '';
+        this.turnToolCount = 0;
+        this.turnThinkingCount = 0;
+        this.activeToolCalls.clear();
+        {
+          const placeholder: Message = {
+            id: this.currentMessageId,
+            role: 'assistant',
+            content: '',
+            timestamp: Date.now(),
+            parts: []
+          };
+          this.emit(AGENT_EVENT_MESSAGE, placeholder);
+        }
         break;
 
+      case 'turn_start':
+        break;
+
+      case 'message_start': {
+        this.setStatus({ state: 'thinking' });
+        // Reset per-message text/thinking tracking, but keep parts and partIndexCounter
+        // so all steps of an agent turn stream into one continuous message.
+        this.currentTextPartIndex = -1;
+        this.currentThinkingPartIndex = -1;
+        break;
+      }
+
       case 'message_update': {
-        const assistantEvent = event.assistantMessageEvent;
-        if (assistantEvent.type === 'text_delta') {
-          this.currentAssistantContent += assistantEvent.delta;
-          this.setStatus({ state: 'responding' });
+        const ae = event.assistantMessageEvent;
+        switch (ae.type) {
+          case 'thinking_start':
+            this.startThinkingPart();
+            break;
+          case 'thinking_delta':
+            if (this.currentThinkingPartIndex < 0) this.startThinkingPart();
+            this.pendingThinkingDelta += ae.delta;
+            this.scheduleDeltaFlush();
+            break;
+          case 'thinking_end':
+            this.endThinkingPart();
+            break;
+          case 'text_delta':
+            // End any active thinking before showing text
+            if (this.currentThinkingPartIndex >= 0) this.endThinkingPart();
+            this.ensureTextPart();
+            this.pendingTextDelta += ae.delta;
+            this.setStatus({ state: 'responding' });
+            this.scheduleDeltaFlush();
+            break;
+          case 'toolcall_start':
+            // End text/thinking before tool call
+            this.endTextPart();
+            this.endThinkingPart();
+            break;
+          case 'toolcall_delta':
+            // Incremental tool-call args; we wait for tool_execution_start for full args
+            break;
+          case 'toolcall_end':
+            // Tool call generated by model; actual execution starts later
+            break;
+          case 'start':
+          case 'text_start':
+          case 'text_end':
+          case 'done':
+          case 'error':
+            break;
         }
         break;
       }
 
       case 'message_end': {
-        // An assistant message can still end in a provider error or an abort;
-        // without this check the user just sees silence.
         const msg = event.message as { stopReason?: string; errorMessage?: string };
         if (msg.stopReason === 'error' || msg.stopReason === 'aborted') {
           const detail =
@@ -443,33 +780,41 @@ export class AgentRuntime {
             (msg.stopReason === 'aborted' ? '生成已中止。' : '模型返回了错误。');
           this.emit(AGENT_EVENT_ERROR, detail);
           this.setStatus({ state: msg.stopReason === 'aborted' ? 'idle' : 'error' });
+          this.resetTurnState();
           break;
         }
 
-        const content = this.currentAssistantContent;
-        const toolCalls = Array.from(this.activeToolCalls.values());
-        const assistantMsg: Message = {
-          id: `msg_${Date.now()}_a`,
-          role: 'assistant',
-          content,
-          timestamp: Date.now(),
-          toolCalls: toolCalls.length > 0 ? toolCalls : undefined
-        };
+        // Flush any pending deltas and finalize streaming parts
+        this.flushDeltas();
+        this.endTextPart();
+        this.endThinkingPart();
+
+        // Persist to DB (each message_end = one row; history loader merges them)
+        const assistantMsg = this.buildCurrentMessage();
         appendMessage(this.activeSessionId, assistantMsg);
-        this.emit(AGENT_EVENT_MESSAGE, assistantMsg);
         this.messageCount++;
 
-        // Update session meta
-        const sessions = listSessions();
-        const meta = sessions.find(s => s.id === this.activeSessionId);
-        if (meta) {
-          const firstLine = content.trim().split('\n')[0].slice(0, 50);
-          updateSessionMeta(this.activeSessionId, {
-            title: firstLine || meta.title,
-            messageCount: this.messageCount
-          });
+        // Notify renderer to finalize streaming state
+        if (this.currentMessageId) {
+          this.emit(AGENT_EVENT_MESSAGE_END, { messageId: this.currentMessageId });
         }
 
+        // Update session meta from the first non-empty text
+        const firstText = (assistantMsg.parts || [])
+          .find((p): p is TextPart => p.type === 'text' && p.content.trim().length > 0);
+        if (firstText) {
+          const firstLine = firstText.content.trim().split('\n')[0].slice(0, 50);
+          const sessions = listSessions();
+          const meta = sessions.find(s => s.id === this.activeSessionId);
+          if (meta && firstLine) {
+            updateSessionMeta(this.activeSessionId, {
+              title: firstLine || meta.title,
+              messageCount: this.messageCount
+            });
+          }
+        }
+
+        this.activeToolCalls.clear();
         this.setStatus({ state: 'idle', currentTool: undefined });
         break;
       }
@@ -481,8 +826,45 @@ export class AgentRuntime {
           input: event.args || {},
           status: 'running'
         };
+        // Category hint for nicer UI rendering
+        const name = event.toolName.toLowerCase();
+        if (name.includes('bash') || name.includes('shell')) {
+          toolCall.category = 'bash';
+          toolCall.inputPreview = typeof event.args?.command === 'string'
+            ? event.args.command.slice(0, 80)
+            : undefined;
+        } else if (name.includes('write') || name.includes('edit') || name.includes('create')) {
+          toolCall.category = 'file_write';
+        } else if (name.includes('read') || name.includes('view') || name.includes('cat')) {
+          toolCall.category = 'file_read';
+        } else if (name.includes('search') || name.includes('grep') || name.includes('find')) {
+          toolCall.category = 'search';
+        } else if (name.includes('browser') || name.includes('navigate')) {
+          toolCall.category = 'browser';
+        } else if (name.includes('computer') || name.includes('click') || name.includes('type')) {
+          toolCall.category = 'computer';
+        } else {
+          toolCall.category = 'other';
+        }
+
         this.activeToolCalls.set(event.toolCallId, toolCall);
         this.setStatus({ state: 'tool_calling', currentTool: event.toolName });
+
+        // Ensure we have a message placeholder (should exist from message_start,
+        // but belt-and-suspenders for edge cases)
+        if (!this.currentMessageId) {
+          this.currentMessageId = `msg_${Date.now()}_a`;
+          this.emit(AGENT_EVENT_MESSAGE, {
+            id: this.currentMessageId,
+            role: 'assistant',
+            content: '',
+            timestamp: Date.now(),
+            parts: []
+          });
+        }
+
+        this.addToolCallPart(toolCall);
+        // Keep the legacy tool_call event for backward compat
         this.emit(AGENT_EVENT_TOOL_CALL, {
           toolCall,
           messageId: this.activeSessionId
@@ -498,11 +880,55 @@ export class AgentRuntime {
           if (event.isError && event.result?.error) {
             toolCall.error = String(event.result.error);
           }
+          this.updateToolCallPartStatus(event.toolCallId, {
+            status: toolCall.status,
+            output: toolCall.output,
+            error: toolCall.error
+          });
+          // Add file delivery card for write/edit tools
+          this.addFileDeliveryPartIfApplicable(toolCall);
+          // Legacy event for backward compat
           this.emit(AGENT_EVENT_TOOL_RESULT, {
             toolCallId: event.toolCallId,
             output: toolCall.output,
             status: toolCall.status
           });
+        }
+        break;
+      }
+
+      case 'turn_end':
+        break;
+
+      case 'agent_end': {
+        const willRetry = 'willRetry' in event ? event.willRetry : false;
+        // Insert a summary part into the stream if there were any tools/thinking
+        if (
+          this.currentMessageId &&
+          (this.turnToolCount > 0 || this.turnThinkingCount > 0)
+        ) {
+          const summary: TurnSummary = {
+            agentName: agentManager.getActive()?.name || 'CocoAgent',
+            toolCount: this.turnToolCount,
+            thinkingCount: this.turnThinkingCount,
+            durationMs: Date.now() - this.turnStartTime
+          };
+          const idx = this.nextPartIndex();
+          const summaryPart: import('../../shared/types').SummaryPart = {
+            id: `summary_${Date.now()}_${idx}`,
+            type: 'summary',
+            index: idx,
+            summary
+          };
+          this.currentParts.push(summaryPart);
+          this.emit(AGENT_EVENT_TURN_END, {
+            messageId: this.currentMessageId,
+            partIndex: idx,
+            summary
+          });
+        }
+        if (!willRetry) {
+          this.resetTurnState();
         }
         break;
       }
@@ -514,10 +940,7 @@ export class AgentRuntime {
         }
         break;
 
-      case 'agent_end':
-        if ('willRetry' in event && event.willRetry === false) {
-          // Agent finished without retrying - check for error state via message
-        }
+      default:
         break;
     }
   }

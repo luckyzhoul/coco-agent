@@ -13,7 +13,9 @@ import type {
   SkillInfo,
   FileEntry,
   FileReadResult,
-  FileWriteResult
+  FileWriteResult,
+  ToolCall,
+  TurnSummary
 } from '../shared/types';
 import {
   AGENT_SEND_MESSAGE,
@@ -32,6 +34,12 @@ import {
   AGENT_EVENT_TOOL_RESULT,
   AGENT_EVENT_STATUS,
   AGENT_EVENT_ERROR,
+  AGENT_EVENT_MESSAGE_DELTA,
+  AGENT_EVENT_THINKING_DELTA,
+  AGENT_EVENT_TOOL_CALL_DELTA,
+  AGENT_EVENT_MESSAGE_END,
+  AGENT_EVENT_FILE_DELIVERY,
+  AGENT_EVENT_TURN_END,
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
   WORKSPACE_LIST_RECENT,
@@ -257,6 +265,42 @@ const electronAPI = {
       const listener = (_: unknown, error: string) => callback(error);
       ipcRenderer.on(AGENT_EVENT_ERROR, listener);
       return () => ipcRenderer.removeListener(AGENT_EVENT_ERROR, listener);
+    },
+    agentMessageDelta: (callback: (data: { messageId: string; partIndex: number; delta: string }) => void) => {
+      const listener = (_: unknown, data: unknown) =>
+        callback(data as { messageId: string; partIndex: number; delta: string });
+      ipcRenderer.on(AGENT_EVENT_MESSAGE_DELTA, listener);
+      return () => ipcRenderer.removeListener(AGENT_EVENT_MESSAGE_DELTA, listener);
+    },
+    agentThinkingDelta: (callback: (data: { messageId: string; partIndex: number; delta: string; state?: 'generating' | 'done' }) => void) => {
+      const listener = (_: unknown, data: unknown) =>
+        callback(data as { messageId: string; partIndex: number; delta: string; state?: 'generating' | 'done' });
+      ipcRenderer.on(AGENT_EVENT_THINKING_DELTA, listener);
+      return () => ipcRenderer.removeListener(AGENT_EVENT_THINKING_DELTA, listener);
+    },
+    agentToolCallDelta: (callback: (data: { messageId: string; partIndex: number; toolCall?: ToolCall; updates?: Partial<ToolCall> }) => void) => {
+      const listener = (_: unknown, data: unknown) =>
+        callback(data as { messageId: string; partIndex: number; toolCall?: ToolCall; updates?: Partial<ToolCall> });
+      ipcRenderer.on(AGENT_EVENT_TOOL_CALL_DELTA, listener);
+      return () => ipcRenderer.removeListener(AGENT_EVENT_TOOL_CALL_DELTA, listener);
+    },
+    agentMessageEnd: (callback: (data: { messageId: string }) => void) => {
+      const listener = (_: unknown, data: unknown) =>
+        callback(data as { messageId: string });
+      ipcRenderer.on(AGENT_EVENT_MESSAGE_END, listener);
+      return () => ipcRenderer.removeListener(AGENT_EVENT_MESSAGE_END, listener);
+    },
+    agentFileDelivery: (callback: (data: { messageId: string; partIndex: number; file: { filePath: string; fileName: string; action: 'create' | 'edit'; fileSize?: number } }) => void) => {
+      const listener = (_: unknown, data: unknown) =>
+        callback(data as { messageId: string; partIndex: number; file: { filePath: string; fileName: string; action: 'create' | 'edit'; fileSize?: number } });
+      ipcRenderer.on(AGENT_EVENT_FILE_DELIVERY, listener);
+      return () => ipcRenderer.removeListener(AGENT_EVENT_FILE_DELIVERY, listener);
+    },
+    agentTurnEnd: (callback: (data: { messageId: string; partIndex: number; summary: TurnSummary }) => void) => {
+      const listener = (_: unknown, data: unknown) =>
+        callback(data as { messageId: string; partIndex: number; summary: TurnSummary });
+      ipcRenderer.on(AGENT_EVENT_TURN_END, listener);
+      return () => ipcRenderer.removeListener(AGENT_EVENT_TURN_END, listener);
     },
     mcpStatusChanged: (callback: (data: { id: string; running: boolean; error?: string }) => void) => {
       const listener = (_: unknown, data: unknown) =>

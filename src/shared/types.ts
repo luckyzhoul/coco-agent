@@ -1,11 +1,3 @@
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: number;
-  toolCalls?: ToolCall[];
-}
-
 export interface ToolCall {
   id: string;
   name: string;
@@ -13,6 +5,71 @@ export interface ToolCall {
   status: 'pending' | 'running' | 'success' | 'error';
   output?: string;
   error?: string;
+  description?: string;
+  inputPreview?: string;
+  category?: 'file_write' | 'file_read' | 'bash' | 'search' | 'mcp' | 'browser' | 'computer' | 'other';
+}
+
+// ===== Message parts: 分段式消息模型 =====
+
+interface BasePart {
+  id: string;
+  index: number;
+}
+
+export interface TextPart extends BasePart {
+  type: 'text';
+  content: string;
+  streaming?: boolean;
+}
+
+export interface ThinkingPart extends BasePart {
+  type: 'thinking';
+  content: string;
+  state: 'generating' | 'done';
+}
+
+export interface ToolCallPart extends BasePart {
+  type: 'tool_call';
+  toolCall: ToolCall;
+}
+
+export interface FileDeliveryPart extends BasePart {
+  type: 'file_delivery';
+  filePath: string;
+  fileName: string;
+  action: 'create' | 'edit';
+  fileSize?: number;
+  language?: string;
+  preview?: string;
+}
+
+export interface SummaryPart extends BasePart {
+  type: 'summary';
+  summary: TurnSummary;
+}
+
+export type MessagePart = TextPart | ThinkingPart | ToolCallPart | FileDeliveryPart | SummaryPart;
+
+export interface TurnSummary {
+  agentName: string;
+  toolCount: number;
+  thinkingCount: number;
+  durationMs?: number;
+}
+
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  /** user/system 消息用 content（纯文本）；assistant 优先用 parts */
+  content?: string;
+  timestamp: number;
+  /** assistant 消息的分段内容（文字、思考、工具调用、文件交付等） */
+  parts?: MessagePart[];
+  /** 兼容旧数据，新代码优先使用 parts；从 parts 中提取 */
+  toolCalls?: ToolCall[];
+  /** 一轮 agent 的汇总信息 */
+  turnSummary?: TurnSummary;
 }
 
 export interface AgentInfo {

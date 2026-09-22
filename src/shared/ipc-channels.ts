@@ -17,6 +17,12 @@ export const AGENT_EVENT_TOOL_CALL = 'agent:event:toolCall';
 export const AGENT_EVENT_TOOL_RESULT = 'agent:event:toolResult';
 export const AGENT_EVENT_STATUS = 'agent:event:status';
 export const AGENT_EVENT_ERROR = 'agent:event:error';
+export const AGENT_EVENT_MESSAGE_DELTA = 'agent:event:messageDelta';
+export const AGENT_EVENT_THINKING_DELTA = 'agent:event:thinkingDelta';
+export const AGENT_EVENT_TOOL_CALL_DELTA = 'agent:event:toolCallDelta';
+export const AGENT_EVENT_MESSAGE_END = 'agent:event:messageEnd';
+export const AGENT_EVENT_FILE_DELIVERY = 'agent:event:fileDelivery';
+export const AGENT_EVENT_TURN_END = 'agent:event:turnEnd';
 
 // Workspace channels
 export const WORKSPACE_SELECT = 'workspace:select';

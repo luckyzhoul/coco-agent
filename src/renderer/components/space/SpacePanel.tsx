@@ -46,13 +46,6 @@ export function SpacePanel() {
           <h2 className="title-serif rule-title flex-1 text-center text-[13px] text-foreground/85">
             项目空间
           </h2>
-          <button
-            onClick={() => setOpen(false)}
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            title="折叠项目空间"
-          >
-            <SidebarRightIcon />
-          </button>
         </div>
 
         <div className="mt-2 flex items-center gap-1.5">
