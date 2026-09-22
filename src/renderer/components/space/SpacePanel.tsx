@@ -39,7 +39,7 @@ export function SpacePanel() {
   if (!open) return null;
 
   return (
-    <aside className="flex h-full w-[380px] shrink-0 flex-col border-l border-border bg-panel">
+    <aside className="flex h-full w-full flex-col border-l border-border bg-panel">
       {/* Header */}
       <div className="shrink-0 border-b border-border px-3 pb-2 pt-3">
         <div className="flex items-center gap-1">

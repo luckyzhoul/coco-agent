@@ -231,7 +231,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   const runningMcpCount = mcpServers.filter((s) => s.enabled).length;
 
   return (
-    <div className="flex h-full w-64 flex-col border-r border-border/60 bg-card/40 backdrop-blur-sm">
+    <div className="flex h-full w-full flex-col border-r border-border/60 bg-card/40 backdrop-blur-sm">
       {/* Agent 切换器 */}
       <div className="px-3 pt-3 pb-2 relative" ref={agentPickerRef}>
         <button
