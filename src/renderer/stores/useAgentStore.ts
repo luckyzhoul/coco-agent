@@ -40,6 +40,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   },
 
   setActiveAgent: async (id) => {
+    if (id === get().activeAgentId) return;
     const active = await window.electronAPI.agents.setActive(id);
     set({ activeAgentId: active.id });
   },

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useIpcRenderer } from '../../hooks/useIpcRenderer';
 import { useSessionStore } from '../../stores/useSessionStore';
 import { useChatStore } from '../../stores/useChatStore';
@@ -10,6 +10,7 @@ import {
   SettingsIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
   PaperclipIcon,
   ActivityIcon,
   ClockIcon,
@@ -19,6 +20,7 @@ import {
   CloseIcon,
   PlugIcon
 } from './icons';
+import { AgentAvatar } from '../chat/AgentAvatar';
 import type { SessionInfo } from '@shared/types';
 
 interface SidebarProps {
@@ -79,15 +81,13 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   const setActiveAgent = useAgentStore((s) => s.setActiveAgent);
   const toggleSkillsModal = useUiStore((s) => s.toggleSkillsModal);
 
-  const sessions = activeAgentId
-    ? allSessions.filter((s) => (s.agentId ?? null) === activeAgentId)
-    : allSessions;
+  const groups = useMemo(() => groupSessions(allSessions), [allSessions]);
 
-  const groups = useMemo(() => groupSessions(sessions), [sessions]);
-
-  const activeAgent = agents.find((a) => a.id === activeAgentId);
+  const activeAgent = agents.find((a) => a.id === activeAgentId) ?? null;
 
   const [isCreating, setIsCreating] = useState(false);
+  const [showAgentPicker, setShowAgentPicker] = useState(false);
+  const agentPickerRef = useRef<HTMLDivElement>(null);
   const [showMcpSection, setShowMcpSection] = useState(true);
   const [showSessionsSection, setShowSessionsSection] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,13 +140,25 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     loadMcpServers();
   }, [ipc, setSessions, setCurrentWorkspace, setRecentWorkspaces, loadAgents, loadMcpServers]);
 
-  const handleSwitchAgent = async (id: string) => {
-    if (id === activeAgentId) return;
+  // 点击外部关闭 Agent 选择器
+  useEffect(() => {
+    if (!showAgentPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (agentPickerRef.current && !agentPickerRef.current.contains(e.target as Node)) {
+        setShowAgentPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showAgentPicker]);
+
+  const handleSelectAgent = async (id: string) => {
+    if (id === activeAgentId) {
+      setShowAgentPicker(false);
+      return;
+    }
     await setActiveAgent(id);
-    const updated = await ipc.agent.listSessions();
-    setSessions(updated);
-    setActiveSession(null);
-    setMessages([]);
+    setShowAgentPicker(false);
   };
 
   const handleNewSession = async () => {
@@ -250,7 +262,76 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
 
   return (
     <div className="flex h-full w-64 flex-col border-r border-border/60 bg-card/40 backdrop-blur-sm">
-      <div className="flex items-center justify-between px-4 pt-2 pb-3">
+      {/* Agent 切换器 */}
+      <div className="px-3 pt-3 pb-2 relative" ref={agentPickerRef}>
+        <button
+          onClick={() => setShowAgentPicker(!showAgentPicker)}
+          className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-accent/50 transition-colors text-left"
+        >
+          <AgentAvatar name={activeAgent?.name || 'CocoAgent'} agentId={activeAgent?.id || 'main'} size="md" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium text-foreground truncate">
+              {activeAgent?.name || 'CocoAgent'}
+            </div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              {activeAgent?.description || '点击切换助手'}
+            </div>
+          </div>
+          <ChevronDownIcon
+            className="text-muted-foreground shrink-0 transition-transform"
+            style={{ transform: showAgentPicker ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          />
+        </button>
+
+        {/* 下拉面板 */}
+        {showAgentPicker && (
+          <div className="absolute top-full left-3 right-3 mt-1 z-50 bg-card border border-border/60 rounded-xl shadow-lifted overflow-hidden">
+            <div className="max-h-60 overflow-y-auto py-1">
+              {agents.map((agent) => (
+                <button
+                  key={agent.id}
+                  onClick={() => handleSelectAgent(agent.id)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
+                    agent.id === activeAgentId
+                      ? 'bg-accent/60 text-foreground'
+                      : 'text-foreground/80 hover:bg-accent/40'
+                  }`}
+                >
+                  <AgentAvatar name={agent.name} agentId={agent.id} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                      {agent.name}
+                      {agent.id === activeAgentId && (
+                        <span className="text-[10px] text-primary font-normal">当前</span>
+                      )}
+                    </div>
+                    {agent.description && (
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {agent.description}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="border-t border-border/40">
+              <button
+                onClick={() => {
+                  setShowAgentPicker(false);
+                  onOpenSettings();
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-colors"
+              >
+                <SettingsIcon />
+                <span>管理助手</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 对话标题栏 */}
+      <div className="flex items-center justify-between px-4 pt-1 pb-2">
         <span className="text-sm font-medium text-foreground/80">对话</span>
         <div className="flex items-center gap-1">
           <button
@@ -362,27 +443,43 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                     </button>
                   ))
                 )
-              ) : sessions.length === 0 ? (
+              ) : allSessions.length === 0 ? (
                 <div className="px-2 py-4 text-center text-xs text-muted-foreground">
                   暂无对话
                 </div>
               ) : (
-                sessions.map((session) => (
-                  <button
-                    key={session.id}
-                    onClick={() => handleSwitchSession(session)}
-                    className={`w-full rounded-xl px-3 py-2 text-left transition-colors ${
-                      session.id === activeSessionId
-                        ? 'bg-accent/70 text-foreground'
-                        : 'text-foreground/80 hover:bg-accent/40'
-                    }`}
-                  >
-                    <div className="truncate text-sm font-medium">{session.title}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {activeAgent?.name || 'CocoAgent'} · {formatTime(session.updatedAt)}
-                    </div>
-                  </button>
-                ))
+                allSessions.map((session) => {
+                  const sessionAgent = agents.find((a) => a.id === session.agentId);
+                  const workspaceName = session.workspacePath
+                    ? session.workspacePath.split(/[/\\]/).filter(Boolean).pop() || session.workspacePath
+                    : '';
+                  return (
+                    <button
+                      key={session.id}
+                      onClick={() => handleSwitchSession(session)}
+                      className={`w-full rounded-xl px-2.5 py-2 text-left transition-colors ${
+                        session.id === activeSessionId
+                          ? 'bg-accent/70 text-foreground'
+                          : 'text-foreground/80 hover:bg-accent/40'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <AgentAvatar
+                          name={sessionAgent?.name || 'CocoAgent'}
+                          agentId={sessionAgent?.id || 'main'}
+                          size="md"
+                          className="mt-0.5"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium">{session.title}</div>
+                          <div className="truncate text-[11px] text-muted-foreground mt-0.5">
+                            {sessionAgent?.name || 'CocoAgent'} · {workspaceName || '未选择空间'} · {formatTime(session.updatedAt)}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
               )}
 
               <div className="px-2 py-1 mt-2 text-xs font-medium text-muted-foreground">
