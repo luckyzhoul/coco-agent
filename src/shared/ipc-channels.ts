@@ -9,7 +9,7 @@ export const AGENT_LIST_SESSIONS = 'agent:listSessions';
 export const AGENT_GET_SESSION_MESSAGES = 'agent:getSessionMessages';
 export const AGENT_GET_STATUS = 'agent:getStatus';
 export const AGENT_SEARCH_SESSIONS = 'agent:searchSessions';
-export const AGENT_PIN_SESSION = 'agent:pinSession';
+export const AGENT_ARCHIVE_SESSION = 'agent:archiveSession';
 export const AGENT_REBIND_WORKSPACE = 'agent:rebindWorkspace';
 
 // Agent event channels (main -> renderer)

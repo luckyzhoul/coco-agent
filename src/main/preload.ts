@@ -28,7 +28,7 @@ import {
   AGENT_GET_SESSION_MESSAGES,
   AGENT_GET_STATUS,
   AGENT_SEARCH_SESSIONS,
-  AGENT_PIN_SESSION,
+  AGENT_ARCHIVE_SESSION,
   AGENT_REBIND_WORKSPACE,
   AGENT_EVENT_MESSAGE,
   AGENT_EVENT_TOOL_CALL,
@@ -143,8 +143,8 @@ const electronAPI = {
       ipcRenderer.invoke(AGENT_SEARCH_SESSIONS, query) as Promise<
         { session: SessionInfo; matches: { messageId: string; role: string; snippet: string }[] }[]
       >,
-    setPinned: (sessionId: string, pinned: boolean) =>
-      ipcRenderer.invoke(AGENT_PIN_SESSION, sessionId, pinned) as Promise<SessionInfo[]>,
+    setArchived: (sessionId: string, archived: boolean) =>
+      ipcRenderer.invoke(AGENT_ARCHIVE_SESSION, sessionId, archived) as Promise<SessionInfo[]>,
     rebindWorkspace: (workspacePath: string) =>
       ipcRenderer.invoke(AGENT_REBIND_WORKSPACE, workspacePath) as Promise<SessionInfo | null>
   },

@@ -1,66 +1,42 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useIpcRenderer } from '../../hooks/useIpcRenderer';
-import { useSessionStore } from '../../stores/useSessionStore';
-import { useChatStore } from '../../stores/useChatStore';
-import { useSettingsStore } from '../../stores/useSettingsStore';
-import { useAgentStore } from '../../stores/useAgentStore';
-import { useUiStore } from '../../stores/useUiStore';
+import type { SessionInfo } from "@shared/types";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useIpcRenderer } from "../../hooks/useIpcRenderer";
+import { useAgentStore } from "../../stores/useAgentStore";
+import { useChatStore } from "../../stores/useChatStore";
+import { useSessionStore } from "../../stores/useSessionStore";
+import { useSettingsStore } from "../../stores/useSettingsStore";
+import { useUiStore } from "../../stores/useUiStore";
+import { AgentAvatar } from "../chat/AgentAvatar";
 import {
-  PlusIcon,
-  SettingsIcon,
+  ActivityIcon,
+  ArchiveIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ChevronDownIcon,
-  PaperclipIcon,
-  ActivityIcon,
   ClockIcon,
-  WrenchIcon,
-  SearchIcon,
-  PinIcon,
   CloseIcon,
-  PlugIcon
-} from './icons';
-import { AgentAvatar } from '../chat/AgentAvatar';
-import type { SessionInfo } from '@shared/types';
+  PlugIcon,
+  PlusIcon,
+  SearchIcon,
+  SettingsIcon,
+  UnarchiveIcon,
+  WrenchIcon,
+} from "./icons";
 
 interface SidebarProps {
   onOpenSettings: () => void;
-}
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** 置顶 → 今天 → 本周 → 更早 */
-function groupSessions(sessions: SessionInfo[]): { label: string; items: SessionInfo[] }[] {
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  // Week starts on Monday.
-  const mondayOffset = (now.getDay() + 6) % 7;
-  const startOfWeek = startOfToday - mondayOffset * DAY_MS;
-
-  const groups: { label: string; items: SessionInfo[] }[] = [
-    { label: '置顶', items: [] },
-    { label: '今天', items: [] },
-    { label: '本周', items: [] },
-    { label: '更早', items: [] }
-  ];
-
-  for (const session of sessions) {
-    if (session.pinned) groups[0].items.push(session);
-    else if (session.updatedAt >= startOfToday) groups[1].items.push(session);
-    else if (session.updatedAt >= startOfWeek) groups[2].items.push(session);
-    else groups[3].items.push(session);
-  }
-
-  return groups.filter((group) => group.items.length > 0);
 }
 
 function formatTime(ts: number): string {
   const date = new Date(ts);
   const now = new Date();
   if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString("zh-CN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
-  return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+  return date.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
 }
 
 export function Sidebar({ onOpenSettings }: SidebarProps) {
@@ -81,24 +57,31 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   const setActiveAgent = useAgentStore((s) => s.setActiveAgent);
   const toggleSkillsModal = useUiStore((s) => s.toggleSkillsModal);
 
-  const groups = useMemo(() => groupSessions(allSessions), [allSessions]);
+  const archivedSessions = useMemo(
+    () => allSessions.filter((s) => s.archived),
+    [allSessions],
+  );
 
   const activeAgent = agents.find((a) => a.id === activeAgentId) ?? null;
 
   const [isCreating, setIsCreating] = useState(false);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const agentPickerRef = useRef<HTMLDivElement>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [showMcpSection, setShowMcpSection] = useState(true);
   const [showSessionsSection, setShowSessionsSection] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<
-    { session: SessionInfo; matches: { messageId: string; role: string; snippet: string }[] }[]
+    {
+      session: SessionInfo;
+      matches: { messageId: string; role: string; snippet: string }[];
+    }[]
   >([]);
   const [browserStatus, setBrowserStatus] = useState<{
     open: boolean;
     visible: boolean;
     url: string;
-  }>({ open: false, visible: false, url: '' });
+  }>({ open: false, visible: false, url: "" });
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -114,7 +97,10 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
 
   useEffect(() => {
     const poll = () => {
-      ipc.browser.getStatus().then(setBrowserStatus).catch(() => {});
+      ipc.browser
+        .getStatus()
+        .then(setBrowserStatus)
+        .catch(() => {});
     };
     poll();
     const interval = setInterval(poll, 2000);
@@ -129,7 +115,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
 
   const handleCloseBrowser = async () => {
     await ipc.browser.close();
-    setBrowserStatus({ open: false, visible: false, url: '' });
+    setBrowserStatus({ open: false, visible: false, url: "" });
   };
 
   useEffect(() => {
@@ -138,18 +124,28 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     ipc.workspace.listRecent().then((ws) => setRecentWorkspaces(ws));
     loadAgents();
     loadMcpServers();
-  }, [ipc, setSessions, setCurrentWorkspace, setRecentWorkspaces, loadAgents, loadMcpServers]);
+  }, [
+    ipc,
+    setSessions,
+    setCurrentWorkspace,
+    setRecentWorkspaces,
+    loadAgents,
+    loadMcpServers,
+  ]);
 
   // 点击外部关闭 Agent 选择器
   useEffect(() => {
     if (!showAgentPicker) return;
     const handler = (e: MouseEvent) => {
-      if (agentPickerRef.current && !agentPickerRef.current.contains(e.target as Node)) {
+      if (
+        agentPickerRef.current &&
+        !agentPickerRef.current.contains(e.target as Node)
+      ) {
         setShowAgentPicker(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, [showAgentPicker]);
 
   const handleSelectAgent = async (id: string) => {
@@ -175,7 +171,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
       const updated = await ipc.agent.listSessions();
       setSessions(updated);
     } catch (err) {
-      console.error('创建会话失败：', err);
+      console.error("创建会话失败：", err);
     } finally {
       setIsCreating(false);
     }
@@ -188,28 +184,41 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
       const meta = await ipc.agent.switchSession(session.id);
       setActiveSession(session.id);
       // 会话与项目空间绑定：切会话即切空间（主进程的 cwd / PathGuard 已跟随）。
-      if (meta?.workspacePath && meta.workspacePath !== currentWorkspace?.path) {
+      if (
+        meta?.workspacePath &&
+        meta.workspacePath !== currentWorkspace?.path
+      ) {
         setCurrentWorkspace({
           path: meta.workspacePath,
-          name: meta.workspacePath.split(/[/\\]/).filter(Boolean).pop() || meta.workspacePath
+          name:
+            meta.workspacePath.split(/[/\\]/).filter(Boolean).pop() ||
+            meta.workspacePath,
         });
       }
       const msgs = await ipc.agent.getSessionMessages(session.id);
       setMessages(msgs);
     } catch (err) {
-      console.error('切换会话失败：', err);
+      console.error("切换会话失败：", err);
     }
   };
 
-  const handleTogglePin = async (e: React.MouseEvent, session: SessionInfo) => {
+  const handleArchiveSession = async (
+    e: React.MouseEvent,
+    session: SessionInfo,
+    archived: boolean,
+  ) => {
     e.stopPropagation();
-    const updated = await ipc.agent.setPinned(session.id, !session.pinned);
+    const updated = await ipc.agent.setArchived(session.id, archived);
     setSessions(updated);
   };
 
-  const handleDeleteSession = async (e: React.MouseEvent, session: SessionInfo) => {
+  const handleDeleteSession = async (
+    e: React.MouseEvent,
+    session: SessionInfo,
+  ) => {
     e.stopPropagation();
-    if (!window.confirm(`确定删除会话「${session.title}」吗？此操作不可撤销。`)) return;
+    if (!window.confirm(`确定删除会话「${session.title}」吗？此操作不可撤销。`))
+      return;
     await ipc.agent.deleteSession(session.id);
     const updated = await ipc.agent.listSessions();
     setSessions(updated);
@@ -221,45 +230,6 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
 
   const runningMcpCount = mcpServers.filter((s) => s.enabled).length;
 
-  const renderSession = (session: SessionInfo) => {
-    const active = session.id === activeSessionId;
-    return (
-      <button
-        key={session.id}
-        onClick={() => handleSwitchSession(session)}
-        className={`group flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
-          active ? 'bg-accent/80 text-foreground' : 'text-foreground/80 hover:bg-accent/40'
-        }`}
-      >
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1">
-            {session.pinned && <PinIcon className="shrink-0 text-primary" />}
-            <span className="truncate text-[13px] font-medium">{session.title}</span>
-          </span>
-          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/80">
-            {formatTime(session.updatedAt)} · {session.messageCount} 条
-          </span>
-        </span>
-        <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-          <span
-            onClick={(e) => handleTogglePin(e, session)}
-            title={session.pinned ? '取消置顶' : '置顶'}
-            className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-          >
-            <PinIcon />
-          </span>
-          <span
-            onClick={(e) => handleDeleteSession(e, session)}
-            title="删除会话"
-            className="rounded p-0.5 text-muted-foreground hover:text-destructive"
-          >
-            <CloseIcon />
-          </span>
-        </span>
-      </button>
-    );
-  };
-
   return (
     <div className="flex h-full w-64 flex-col border-r border-border/60 bg-card/40 backdrop-blur-sm">
       {/* Agent 切换器 */}
@@ -268,18 +238,24 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
           onClick={() => setShowAgentPicker(!showAgentPicker)}
           className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-accent/50 transition-colors text-left"
         >
-          <AgentAvatar name={activeAgent?.name || 'CocoAgent'} agentId={activeAgent?.id || 'main'} size="md" />
+          <AgentAvatar
+            name={activeAgent?.name || "CocoAgent"}
+            agentId={activeAgent?.id || "main"}
+            size="md"
+          />
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium text-foreground truncate">
-              {activeAgent?.name || 'CocoAgent'}
+              {activeAgent?.name || "CocoAgent"}
             </div>
             <div className="text-[11px] text-muted-foreground truncate">
-              {activeAgent?.description || '点击切换助手'}
+              {activeAgent?.description || "点击切换助手"}
             </div>
           </div>
           <ChevronDownIcon
             className="text-muted-foreground shrink-0 transition-transform"
-            style={{ transform: showAgentPicker ? 'rotate(180deg)' : 'rotate(0deg)' }}
+            style={{
+              transform: showAgentPicker ? "rotate(180deg)" : "rotate(0deg)",
+            }}
           />
         </button>
 
@@ -293,8 +269,8 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                   onClick={() => handleSelectAgent(agent.id)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
                     agent.id === activeAgentId
-                      ? 'bg-accent/60 text-foreground'
-                      : 'text-foreground/80 hover:bg-accent/40'
+                      ? "bg-accent/60 text-foreground"
+                      : "text-foreground/80 hover:bg-accent/40"
                   }`}
                 >
                   <AgentAvatar name={agent.name} agentId={agent.id} size="sm" />
@@ -302,7 +278,9 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                     <div className="text-sm font-medium truncate flex items-center gap-1.5">
                       {agent.name}
                       {agent.id === activeAgentId && (
-                        <span className="text-[10px] text-primary font-normal">当前</span>
+                        <span className="text-[10px] text-primary font-normal">
+                          当前
+                        </span>
                       )}
                     </div>
                     {agent.description && (
@@ -386,10 +364,17 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <ChevronRightIcon
-                style={{ transform: showSessionsSection ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
+                style={{
+                  transform: showSessionsSection
+                    ? "rotate(90deg)"
+                    : "rotate(0deg)",
+                  transition: "transform 0.15s",
+                }}
               />
             </button>
-            <span className="text-xs font-medium text-muted-foreground">搜索聊天记录</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              搜索聊天记录
+            </span>
           </div>
 
           <div className="px-1 mb-2">
@@ -427,11 +412,13 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                       onClick={() => handleSwitchSession(result.session)}
                       className={`w-full rounded-xl px-3 py-2 text-left transition-colors ${
                         result.session.id === activeSessionId
-                          ? 'bg-accent/70 text-foreground'
-                          : 'text-foreground/80 hover:bg-accent/40'
+                          ? "bg-accent/70 text-foreground"
+                          : "text-foreground/80 hover:bg-accent/40"
                       }`}
                     >
-                      <div className="truncate text-sm font-medium">{result.session.title}</div>
+                      <div className="truncate text-sm font-medium">
+                        {result.session.title}
+                      </div>
                       {result.matches.map((m) => (
                         <div
                           key={m.messageId}
@@ -443,43 +430,74 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                     </button>
                   ))
                 )
-              ) : allSessions.length === 0 ? (
+              ) : allSessions.filter((s) => !s.archived).length === 0 ? (
                 <div className="px-2 py-4 text-center text-xs text-muted-foreground">
                   暂无对话
                 </div>
               ) : (
-                allSessions.map((session) => {
-                  const sessionAgent = agents.find((a) => a.id === session.agentId);
-                  const workspaceName = session.workspacePath
-                    ? session.workspacePath.split(/[/\\]/).filter(Boolean).pop() || session.workspacePath
-                    : '';
-                  return (
-                    <button
-                      key={session.id}
-                      onClick={() => handleSwitchSession(session)}
-                      className={`w-full rounded-xl px-2.5 py-2 text-left transition-colors ${
-                        session.id === activeSessionId
-                          ? 'bg-accent/70 text-foreground'
-                          : 'text-foreground/80 hover:bg-accent/40'
-                      }`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <AgentAvatar
-                          name={sessionAgent?.name || 'CocoAgent'}
-                          agentId={sessionAgent?.id || 'main'}
-                          size="md"
-                          className="mt-0.5"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium">{session.title}</div>
-                          <div className="truncate text-[11px] text-muted-foreground mt-0.5">
-                            {sessionAgent?.name || 'CocoAgent'} · {workspaceName || '未选择空间'} · {formatTime(session.updatedAt)}
+                allSessions
+                  .filter((s) => !s.archived)
+                  .map((session) => {
+                    const sessionAgent = agents.find(
+                      (a) => a.id === session.agentId,
+                    );
+                    const workspaceName = session.workspacePath
+                      ? session.workspacePath
+                          .split(/[/\\]/)
+                          .filter(Boolean)
+                          .pop() || session.workspacePath
+                      : "";
+                    return (
+                      <button
+                        key={session.id}
+                        onClick={() => handleSwitchSession(session)}
+                        className={`group w-full rounded-xl px-2.5 py-2 text-left transition-colors ${
+                          session.id === activeSessionId
+                            ? "bg-accent/70 text-foreground"
+                            : "text-foreground/80 hover:bg-accent/40"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <AgentAvatar
+                            name={sessionAgent?.name || "CocoAgent"}
+                            agentId={sessionAgent?.id || "main"}
+                            size="md"
+                            className="mt-0.5"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1">
+                              <span className="truncate text-sm font-medium">
+                                {session.title}
+                              </span>
+                            </div>
+                            <div className="truncate text-[11px] text-muted-foreground mt-0.5">
+                              {sessionAgent?.name || "CocoAgent"} ·{" "}
+                              {workspaceName || "未选择空间"} ·{" "}
+                              {formatTime(session.updatedAt)}
+                            </div>
                           </div>
+                          <span className="flex shrink-0 self-center items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                            <span
+                              onClick={(e) =>
+                                handleArchiveSession(e, session, true)
+                              }
+                              title="归档会话"
+                              className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground"
+                            >
+                              <ArchiveIcon className="w-6 h-6" />
+                            </span>
+                            <span
+                              onClick={(e) => handleDeleteSession(e, session)}
+                              title="删除会话"
+                              className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-destructive"
+                            >
+                              <CloseIcon className="w-6 h-6" />
+                            </span>
+                          </span>
                         </div>
-                      </div>
-                    </button>
-                  );
-                })
+                      </button>
+                    );
+                  })
               )}
 
               <div className="px-2 py-1 mt-2 text-xs font-medium text-muted-foreground">
@@ -489,13 +507,79 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
           )}
         </div>
 
+        {archivedSessions.length > 0 && (
+          <div className="px-3 pb-3 border-t border-border/40 pt-3">
+            <button
+              onClick={() => setShowArchived(!showArchived)}
+              className="flex w-full items-center gap-2 px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronRightIcon
+                style={{
+                  transform: showArchived ? "rotate(90deg)" : "rotate(0deg)",
+                  transition: "transform 0.15s",
+                }}
+              />
+              <ArchiveIcon />
+              <span>已归档</span>
+              <span className="ml-auto text-muted-foreground/70">
+                {archivedSessions.length}
+              </span>
+            </button>
+
+            {showArchived && (
+              <div className="mt-1 space-y-0.5">
+                {archivedSessions.map((session) => (
+                  <button
+                    key={session.id}
+                    onClick={() => handleSwitchSession(session)}
+                    className={`group flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
+                      session.id === activeSessionId
+                        ? "bg-accent/80 text-foreground"
+                        : "text-foreground/70 hover:bg-accent/40"
+                    }`}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-medium">
+                        {session.title}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/80">
+                        {formatTime(session.updatedAt)} · {session.messageCount}{" "}
+                        条
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 self-center items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      <span
+                        onClick={(e) => handleArchiveSession(e, session, false)}
+                        title="取消归档"
+                        className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground"
+                      >
+                        <UnarchiveIcon className="w-6 h-6" />
+                      </span>
+                      <span
+                        onClick={(e) => handleDeleteSession(e, session)}
+                        title="删除会话"
+                        className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-destructive"
+                      >
+                        <CloseIcon className="w-6 h-6" />
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="px-3 pb-3 border-t border-border/40 pt-3">
           <button
             onClick={() => setShowMcpSection(!showMcpSection)}
             className="flex w-full items-center gap-2 mb-2 px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             <ChevronRightIcon
-              style={{ transform: showMcpSection ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
+              style={{
+                transform: showMcpSection ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.15s",
+              }}
             />
             <PlugIcon />
             <span>MCP</span>
@@ -516,9 +600,11 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                     key={server.id}
                     className="flex items-center gap-2 px-2 py-1 text-xs"
                   >
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      server.enabled ? 'bg-emerald-500' : 'bg-muted'
-                    }`} />
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        server.enabled ? "bg-emerald-500" : "bg-muted"
+                      }`}
+                    />
                     <span className="truncate text-muted-foreground">
                       {server.name}
                     </span>
@@ -539,15 +625,18 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
         {browserStatus.open && (
           <div className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span className="truncate flex-1 text-muted-foreground" title={browserStatus.url}>
+            <span
+              className="truncate flex-1 text-muted-foreground"
+              title={browserStatus.url}
+            >
               浏览器运行中
             </span>
             <button
               onClick={handleToggleBrowserVisible}
               className="text-muted-foreground hover:text-foreground transition-colors"
-              title={browserStatus.visible ? '隐藏浏览器' : '显示浏览器'}
+              title={browserStatus.visible ? "隐藏浏览器" : "显示浏览器"}
             >
-              {browserStatus.visible ? '隐藏' : '显示'}
+              {browserStatus.visible ? "隐藏" : "显示"}
             </button>
             <button
               onClick={handleCloseBrowser}

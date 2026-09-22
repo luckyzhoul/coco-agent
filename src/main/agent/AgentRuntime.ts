@@ -61,7 +61,7 @@ import {
   loadSessionMessages,
   generateSessionId,
   searchSessions,
-  setSessionPinned,
+  setSessionArchived,
   updateSessionWorkspace,
   type SessionSearchResult
 } from './session-store';
@@ -620,8 +620,8 @@ export class AgentRuntime {
     return listSessions();
   }
 
-  setSessionPinned(sessionId: string, pinned: boolean): void {
-    setSessionPinned(sessionId, pinned);
+  setSessionArchived(sessionId: string, archived: boolean): void {
+    setSessionArchived(sessionId, archived);
   }
 
   /**

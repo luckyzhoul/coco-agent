@@ -88,7 +88,7 @@ export interface SessionInfo {
   createdAt: number;
   updatedAt: number;
   messageCount: number;
-  pinned: boolean;
+  archived: boolean;
 }
 
 export interface AgentStatus {

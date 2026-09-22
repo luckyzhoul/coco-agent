@@ -165,6 +165,28 @@ export function CloseIcon({ className, style }: IconProps) {
   );
 }
 
+/** 归档 — 盒子加下箭头 */
+export function ArchiveIcon({ className, style }: IconProps) {
+  return (
+    <svg style={style} viewBox="0 0 24 24" fill="none" className={cn('w-3.5 h-3.5', className)} aria-hidden stroke="currentColor" strokeWidth="1.5">
+      <rect x="3" y="4" width="18" height="4" rx="1" />
+      <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8" strokeLinecap="round" />
+      <path d="M12 11v5M9.5 13.5 12 16l2.5-2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** 取消归档 — 盒子加上箭头 */
+export function UnarchiveIcon({ className, style }: IconProps) {
+  return (
+    <svg style={style} viewBox="0 0 24 24" fill="none" className={cn('w-3.5 h-3.5', className)} aria-hidden stroke="currentColor" strokeWidth="1.5">
+      <rect x="3" y="4" width="18" height="4" rx="1" />
+      <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8" strokeLinecap="round" />
+      <path d="M12 16v-5M9.5 13.5 12 11l2.5 2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 /** MCP — 插头 */
 export function PlugIcon({ className, style }: IconProps) {
   return (

@@ -34,7 +34,7 @@ import {
   AGENT_GET_SESSION_MESSAGES,
   AGENT_GET_STATUS,
   AGENT_SEARCH_SESSIONS,
-  AGENT_PIN_SESSION,
+  AGENT_ARCHIVE_SESSION,
   AGENT_REBIND_WORKSPACE,
   SETTINGS_GET,
   SETTINGS_SET,
@@ -184,8 +184,8 @@ export function registerIpcHandlers(
     return agentRuntime.searchSessions(query);
   });
 
-  ipcMain.handle(AGENT_PIN_SESSION, (_e, sessionId: string, pinned: boolean) => {
-    agentRuntime.setSessionPinned(sessionId, pinned);
+  ipcMain.handle(AGENT_ARCHIVE_SESSION, (_e, sessionId: string, archived: boolean) => {
+    agentRuntime.setSessionArchived(sessionId, archived);
     return agentRuntime.listSessions();
   });
 

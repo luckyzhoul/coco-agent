@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL,
   message_count  INTEGER NOT NULL DEFAULT 0,
-  pinned         INTEGER NOT NULL DEFAULT 0
+  archived       INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -85,7 +85,7 @@ export function initDb(): DatabaseSync {
   // Databases created before pinning existed keep the old column set; add it
   // on sight. Existing dev data is disposable, so no version table.
   try {
-    db.exec('ALTER TABLE sessions ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
+    db.exec('ALTER TABLE sessions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0');
   } catch {
     // Column already present.
   }
