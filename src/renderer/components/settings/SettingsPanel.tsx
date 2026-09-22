@@ -45,10 +45,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 backdrop-blur-sm">
-      <div className="bg-chat-assistant border border-border/60 rounded-2xl w-[900px] max-h-[80vh] flex flex-col shadow-xl">
+      <div className="bg-chat-assistant border border-border/60 rounded-2xl w-[900px] h-[80vh] flex flex-col shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-          <h2 className="text-lg font-semibold">Settings</h2>
+          <h2 className="text-lg font-semibold">设置</h2>
           <button
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground transition-colors"
@@ -77,7 +77,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 min-h-0 overflow-y-auto p-6">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <span className="text-muted-foreground">加载中…</span>
