@@ -5,12 +5,17 @@ import { getDb } from '../db';
 import { DEFAULT_AGENT_ID } from '../agents/AgentManager';
 import { Bm25Index } from './Bm25Index';
 import { embeddingClient, cosineSimilarity } from './EmbeddingClient';
+import { buildCompileTool } from './compiler';
+import { recencyWeight, tierOrder, type MemoryTier } from './tiering';
+
+export type { MemoryTier };
 
 interface MemoryEntry {
   id: string;
   content: string;
   tags: string[];
   source: string;
+  tier: MemoryTier;
   createdAt: number;
   updatedAt: number;
 }
@@ -20,6 +25,7 @@ interface MemoryRow {
   content: string;
   tags: string;
   source: string;
+  tier: string;
   created_at: number;
   updated_at: number;
 }
@@ -67,6 +73,7 @@ export class MemoryService {
         content: r.content,
         tags: safeParseTags(r.tags),
         source: r.source,
+        tier: r.tier === 'long_term' ? 'long_term' : 'recent',
         createdAt: r.created_at,
         updatedAt: r.updated_at
       }));
@@ -91,7 +98,7 @@ export class MemoryService {
         JSON.stringify(entry.tags),
         entry.source,
         this.agentId ?? DEFAULT_AGENT_ID,
-        'recent',
+        entry.tier,
         entry.createdAt,
         entry.updatedAt
       );
@@ -117,11 +124,52 @@ export class MemoryService {
       content,
       tags,
       source,
+      tier: 'recent',
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
     this.entries.unshift(entry);
     this.insertEntry(entry);
+    this.reindex();
+    return entry;
+  }
+
+  /** Entries in a tier, oldest first (compilation consumes them in order). */
+  listByTier(tier: MemoryTier, limit?: number): MemoryEntry[] {
+    const rows = this.entries
+      .filter((e) => e.tier === tier)
+      .sort((a, b) => a.createdAt - b.createdAt);
+    return limit ? rows.slice(0, limit) : rows;
+  }
+
+  /**
+   * Distill the given recent entries into one long-term entry and remove the
+   * sources. Raw text stays recoverable via the session transcript; the
+   * long-term entry is the durable, searchable form.
+   */
+  compile(summary: string, sourceIds: string[], tags: string[] = []): MemoryEntry {
+    const now = Date.now();
+    const entry: MemoryEntry = {
+      id: this.generateId(),
+      content: summary,
+      tags: tags.length > 0 ? tags : ['compiled'],
+      source: `compiled:${sourceIds.length}`,
+      tier: 'long_term',
+      createdAt: now,
+      updatedAt: now
+    };
+
+    const db = getDb();
+    this.entries.unshift(entry);
+    this.insertEntry(entry);
+
+    const del = db.prepare('DELETE FROM memories WHERE id = ?');
+    for (const id of sourceIds) {
+      del.run(id);
+      this.embeddings.delete(id);
+    }
+    this.entries = this.entries.filter((e) => !sourceIds.includes(e.id));
+
     this.reindex();
     return entry;
   }
@@ -156,10 +204,19 @@ export class MemoryService {
   }
 
   list(limit: number = 50): MemoryEntry[] {
-    return this.entries.slice(0, limit);
+    // Recent first, then long-term; within a tier newest wins.
+    return [...this.entries]
+      .sort(
+        (a, b) =>
+          tierOrder(a.tier) - tierOrder(b.tier) || b.updatedAt - a.updatedAt
+      )
+      .slice(0, limit);
   }
 
-  /** Lexical search only. Always available, no network. */
+  /**
+   * Raw BM25 hits, unweighted. Callers apply tier weights at their exit point
+   * so the hybrid path does not weight the lexical component twice.
+   */
   searchLexical(query: string, limit: number = 10): MemorySearchHit[] {
     return this.index
       .search(query, limit)
@@ -172,12 +229,25 @@ export class MemoryService {
   }
 
   /**
+   * Recent memories decay in relevance as they age; long-term ones do not.
+   * Applied to every scoring path so tiering is consistent.
+   */
+  private applyTierWeights(hits: MemorySearchHit[]): MemorySearchHit[] {
+    return hits.map((h) => ({
+      ...h,
+      score: h.score * recencyWeight(h.updatedAt)
+    }));
+  }
+
+  /**
    * Hybrid search: BM25 always runs; when an embedding model is configured the
    * semantic score is blended in. Falls back silently to lexical-only.
    */
   async search(query: string, limit: number = 10): Promise<MemorySearchHit[]> {
     const lexical = this.searchLexical(query, Math.max(limit * 3, 20));
-    if (lexical.length === 0 && !embeddingClient.isAvailable()) return [];
+    if (lexical.length === 0 && !embeddingClient.isAvailable()) {
+      return [];
+    }
 
     const vectors = await embeddingClient.embed([
       query,
@@ -185,7 +255,9 @@ export class MemoryService {
     ]);
 
     if (!vectors) {
-      return lexical.slice(0, limit);
+      return this.applyTierWeights(lexical)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit);
     }
 
     const [queryVec, ...docVecs] = vectors;
@@ -210,7 +282,7 @@ export class MemoryService {
       };
     });
 
-    return scored
+    return this.applyTierWeights(scored)
       .filter((h) => h.score > 0.01)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
@@ -257,7 +329,7 @@ export class MemoryService {
         name: 'memory_search',
         label: 'Memory: Search',
         description:
-          'Search the long-term memory for relevant information. Use this when you need to recall past conversations, facts, preferences, or previously stored knowledge.',
+          'Search the agent memory for relevant information. Use this when you need to recall past conversations, facts, preferences, or previously stored knowledge.',
         parameters: Type.Object({
           query: Type.String({ description: 'Search query' }),
           limit: Type.Optional(Type.Number({ description: 'Max results (default: 10)' }))
@@ -273,7 +345,7 @@ export class MemoryService {
           const text = results
             .map(
               (r, i) =>
-                `[${i + 1}] (${r.matchType}, score ${r.score.toFixed(2)}) ${r.content}\n    tags: ${
+                `[${i + 1}] (${r.tier}, ${r.matchType}, score ${r.score.toFixed(2)}) ${r.content}\n    tags: ${
                   r.tags.join(', ') || 'none'
                 }\n    id: ${r.id}`
             )
@@ -290,7 +362,8 @@ export class MemoryService {
       defineTool({
         name: 'memory_list',
         label: 'Memory: List',
-        description: 'List recent memory entries from the knowledge base.',
+        description:
+          'List memory entries. Recent entries come first, then long-term compiled knowledge.',
         parameters: Type.Object({
           limit: Type.Optional(Type.Number({ description: 'Max entries (default: 50)' }))
         }),
@@ -305,7 +378,7 @@ export class MemoryService {
           const text = entries
             .map(
               (e, i) =>
-                `[${i + 1}] ${e.content.slice(0, 100)}${
+                `[${i + 1}] (${e.tier}) ${e.content.slice(0, 100)}${
                   e.content.length > 100 ? '...' : ''
                 }\n    tags: ${e.tags.join(', ') || 'none'}\n    id: ${e.id}`
             )
@@ -316,6 +389,8 @@ export class MemoryService {
           };
         }
       }),
+
+      buildCompileTool(service),
 
       defineTool({
         name: 'memory_delete',
