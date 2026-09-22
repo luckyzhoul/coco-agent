@@ -42,14 +42,6 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         )}
       </div>
-    );
-  }
-
-  return (
-    <div className="flex w-full justify-end">
-      <div className="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground shadow-soft">
-        <div className="whitespace-pre-wrap text-[13.5px] leading-relaxed">{message.content}</div>
-      </div>
     </div>
   );
 }

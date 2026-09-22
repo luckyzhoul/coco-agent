@@ -29,10 +29,7 @@ interface SpaceState {
   activeTabPath: string | null;
   loading: boolean;
   error: string | null;
-  /** Whether the panel is expanded. */
-  open: boolean;
 
-  setOpen: (open: boolean) => void;
   setRoot: (root: WorkspaceInfo | null) => void;
   /** Ask the user for a directory and move the app + active session to it. */
   switchSpace: () => Promise<WorkspaceInfo | null>;
@@ -72,9 +69,7 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
   activeTabPath: null,
   loading: false,
   error: null,
-  open: true,
 
-  setOpen: (open) => set({ open }),
   setSort: (sort) => set({ sort }),
   setFilter: (filter) => set({ filter }),
   toggleHidden: () => set((s) => ({ showHidden: !s.showHidden })),

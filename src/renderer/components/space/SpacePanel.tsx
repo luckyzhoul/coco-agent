@@ -1,14 +1,16 @@
 import { useEffect } from 'react';
 import { useSessionStore } from '../../stores/useSessionStore';
 import { useSpaceStore } from '../../stores/useSpaceStore';
+import { useUiStore } from '../../stores/useUiStore';
 import { FileBrowser } from './FileBrowser';
 import { FileViewer } from './FileViewer';
 import { SpaceFooter } from './SpaceFooter';
-import { ExternalIcon, PanelIcon } from './icons';
+import { ExternalIcon } from './icons';
+import { SidebarRightIcon } from '../layout/icons';
 
 export function SpacePanel() {
-  const open = useSpaceStore((s) => s.open);
-  const setOpen = useSpaceStore((s) => s.setOpen);
+  const open = useUiStore((s) => s.spacePanelOpen);
+  const setOpen = useUiStore((s) => s.setSpacePanelOpen);
   const root = useSpaceStore((s) => s.root);
   const setRoot = useSpaceStore((s) => s.setRoot);
   const error = useSpaceStore((s) => s.error);
@@ -33,19 +35,8 @@ export function SpacePanel() {
     }
   }, [currentWorkspace, setCurrentWorkspace]);
 
-  if (!open) {
-    return (
-      <div className="flex w-10 shrink-0 flex-col items-center gap-2 border-l border-border bg-panel py-3">
-        <button
-          onClick={() => setOpen(true)}
-          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-          title="展开项目空间"
-        >
-          <PanelIcon />
-        </button>
-      </div>
-    );
-  }
+  // Collapsed from the titlebar toggle; the titlebar button brings it back.
+  if (!open) return null;
 
   return (
     <aside className="flex h-full w-[380px] shrink-0 flex-col border-l border-border bg-panel">
@@ -60,7 +51,7 @@ export function SpacePanel() {
             className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             title="折叠项目空间"
           >
-            <PanelIcon />
+            <SidebarRightIcon />
           </button>
         </div>
 

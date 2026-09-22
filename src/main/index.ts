@@ -36,9 +36,20 @@ function createWindow(): void {
 
   Menu.setApplicationMenu(null);
 
-  if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
+  // electron-vite v2+ exports ELECTRON_RENDERER_URL; older versions used
+  // VITE_DEV_SERVER_URL. Accept both, otherwise dev silently loads the last
+  // build from out/renderer and hot reload appears broken.
+  const devServerUrl = process.env.ELECTRON_RENDERER_URL || process.env.VITE_DEV_SERVER_URL;
+
+  if (devServerUrl) {
+    mainWindow.loadURL(devServerUrl);
+    // DevTools no longer auto-opens (it covers the UI). The menu is disabled
+    // and the window is frameless, so wire up a shortcut instead.
+    mainWindow.webContents.on('before-input-event', (_event, input) => {
+      if (input.type === 'keyDown' && input.key === 'F12') {
+        mainWindow?.webContents.toggleDevTools();
+      }
+    });
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }

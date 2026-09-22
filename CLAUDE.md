@@ -73,4 +73,6 @@ pnpm repair:electron  # pnpm 重链可能抹掉 electron 二进制，此脚本�
 
 14. **主题是 CSS 变量**：`styles/globals.css` 的 `:root`（暖米纸亮色，默认）与 `.dark` 两套 HSL 变量，`tailwind.config.js` 全部映射为 `hsl(var(--x) / <alpha-value>)`。改配色只动 globals.css，别在组件里写死 `text-red-400` 这类暗色调色值。主题 class 由 `App.tsx` 按 `settings.theme` 切；`index.html` 不要写死 `class="dark"`。界面文案一律中文。
 
-15. **`electron-vite@5` 注入的是 `ELECTRON_RENDERER_URL`**（旧版才是 `VITE_DEV_SERVER_URL`）。`index.ts` 两个都读。只认后者会让 `pnpm dev` 静默加载 `out/renderer` 的旧构建，表现为「改了代码界面没变、热重载失效」。
+15. **`electron-vite@5` 注入的是 `ELECTRON_RENDERER_URL`**（旧版才是 `VITE_DEV_SERVER_URL`）。`index.ts` 必须两个都读：只认后者会让 `pnpm dev` 静默加载 `out/renderer` 的旧构建，表现为「改了代码界面没变、热重载失效」。这个判断**已被误改回去过一次**，动 `createWindow` 时留意。
+
+16. **窗口是无边框的**（`frame: false` + `titleBarStyle: 'hidden'` + `Menu.setApplicationMenu(null)`），标题栏由 `components/layout/Titlebar.tsx` 自绘：左侧会话栏开关、中间「聊天/频道」、右侧项目空间开关 + 窗口控制。拖动靠容器上的 `WebkitAppRegion: 'drag'`，**所有按钮必须显式标 `no-drag`**，否则点不动。因为菜单被禁用，dev 下用 **F12** 开 DevTools（`before-input-event` 里注册），且**不要**恢复 `openDevTools` 自动弹出。两侧面板的显隐状态在 `stores/useUiStore.ts`（纯视图状态，别塞进 useSpaceStore）。
