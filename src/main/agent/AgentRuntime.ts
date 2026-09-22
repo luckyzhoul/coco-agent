@@ -14,6 +14,8 @@ import { modelManager } from '../models/ModelManager';
 import { providerIdFor, syncPiModelConfig } from '../models/PiModelConfig';
 import { agentManager } from '../agents/AgentManager';
 import { agentSkillsDir, buildPersonaPrompt } from '../agents/persona';
+import { pathGuard } from '../security/PathGuard';
+import { excludedToolsFor } from '../security/pathPolicy';
 import { mcpManager } from '../mcp/McpManager';
 import { buildMcpTools } from '../mcp/McpToolBridge';
 import { memoryService } from '../memory/MemoryService';
@@ -165,6 +167,9 @@ export class AgentRuntime {
     const sessionId = generateSessionId();
     const title = `New Chat ${new Date().toLocaleTimeString()}`;
 
+    // PathGuard's write root follows the session's workspace.
+    pathGuard.setWorkspaceRoot(workspacePath);
+
     // Memories are agent-scoped; make sure the active agent's are loaded.
     memoryService.load(agentManager.getActiveId());
 
@@ -231,6 +236,17 @@ export class AgentRuntime {
     return loader;
   }
 
+  /**
+   * Tools to withhold from the session at the current security level.
+   *
+   * This is the real enforcement of `readonly`: Pi runs its built-in file
+   * tools in-process, so rather than intercepting calls we never hand the
+   * model write/edit/bash in the first place.
+   */
+  private securityExclusions(): string[] {
+    return excludedToolsFor(pathGuard.level);
+  }
+
   async switchSession(sessionId: string): Promise<void> {
     const sessions = listSessions();
     const meta = sessions.find(s => s.id === sessionId);
@@ -259,6 +275,8 @@ export class AgentRuntime {
     }
     memoryService.load(agentManager.getActiveId());
 
+    pathGuard.setWorkspaceRoot(meta.workspacePath);
+
     const resourceLoader = await this.buildResourceLoader(meta.workspacePath, piSettingsManager);
     const allCustomTools = await this.buildCustomTools(meta.workspacePath);
 
@@ -267,6 +285,7 @@ export class AgentRuntime {
       cwd: meta.workspacePath,
       agentDir: PI_RUNTIME_DIR,
       customTools: allCustomTools as any[],
+      excludeTools: this.securityExclusions(),
       sessionManager: SessionManager.inMemory(),
       settingsManager: piSettingsManager,
       resourceLoader,

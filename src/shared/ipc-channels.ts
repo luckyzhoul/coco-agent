@@ -78,6 +78,11 @@ export const COMPUTER_GET_SCREEN_INFO = 'computer:getScreenInfo';
 export const APP_GET_PATHS = 'app:getPaths';
 export const APP_OPEN_HOME = 'app:openHome';
 
+// Security channels
+export const SECURITY_GET = 'security:get';
+export const SECURITY_SET_LEVEL = 'security:setLevel';
+export const SECURITY_CHECK = 'security:check';
+
 // Agent channels
 export const AGENTS_LIST = 'agents:list';
 export const AGENTS_CREATE = 'agents:create';

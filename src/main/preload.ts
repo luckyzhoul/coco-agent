@@ -7,6 +7,7 @@ import type {
   WorkspaceInfo,
   AppSettings,
   ModelConfig,
+  SecurityLevel,
   ModelTestResult,
   MCPConfig,
   SkillInfo
@@ -69,6 +70,9 @@ import {
   APP_GET_PATHS,
   APP_OPEN_HOME,
   AGENTS_LIST,
+  SECURITY_GET,
+  SECURITY_SET_LEVEL,
+  SECURITY_CHECK,
   AGENTS_CREATE,
   AGENTS_UPDATE,
   AGENTS_DELETE,
@@ -245,6 +249,22 @@ const electronAPI = {
       ipcRenderer.invoke(BROWSER_GET_STATUS) as Promise<{ open: boolean; visible: boolean; url: string }>,
     setVisible: (visible: boolean) => ipcRenderer.invoke(BROWSER_SET_VISIBLE, visible),
     close: () => ipcRenderer.invoke(BROWSER_CLOSE)
+  },
+  security: {
+    get: () =>
+      ipcRenderer.invoke(SECURITY_GET) as Promise<{
+        level: SecurityLevel;
+        levels: SecurityLevel[];
+        workspaceRoot: string | null;
+      }>,
+    setLevel: (level: SecurityLevel) =>
+      ipcRenderer.invoke(SECURITY_SET_LEVEL, level) as Promise<SecurityLevel>,
+    check: (path: string, op: 'read' | 'write') =>
+      ipcRenderer.invoke(SECURITY_CHECK, path, op) as Promise<{
+        allowed: boolean;
+        zone: string;
+        reason?: string;
+      }>
   },
   agents: {
     list: () => ipcRenderer.invoke(AGENTS_LIST) as Promise<AgentInfo[]>,

@@ -63,6 +63,9 @@ import {
   APP_GET_PATHS,
   APP_OPEN_HOME,
   AGENTS_LIST,
+  SECURITY_GET,
+  SECURITY_SET_LEVEL,
+  SECURITY_CHECK,
   AGENTS_CREATE,
   AGENTS_UPDATE,
   AGENTS_DELETE,
@@ -81,6 +84,8 @@ import { paths } from '../paths';
 import { agentManager } from '../agents/AgentManager';
 import { readPersona, writePersona } from '../agents/persona';
 import { memoryService } from '../memory/MemoryService';
+import { pathGuard } from '../security/PathGuard';
+import type { SecurityLevel } from '../../shared/types';
 
 export function registerIpcHandlers(
   ipcMain: IpcMain,
@@ -304,6 +309,26 @@ export function registerIpcHandlers(
   // Computer use handlers
   ipcMain.handle(COMPUTER_GET_SCREEN_INFO, () => {
     return computerService.getScreenInfo();
+  });
+
+  // Security handlers
+  ipcMain.handle(SECURITY_GET, () => {
+    return {
+      level: pathGuard.level,
+      levels: pathGuard.listLevels(),
+      workspaceRoot: pathGuard.getWorkspaceRoot()
+    };
+  });
+
+  ipcMain.handle(SECURITY_SET_LEVEL, (_e, level: SecurityLevel) => {
+    pathGuard.setLevel(level);
+    // Takes effect on the next session creation; existing sessions keep
+    // their tool set until rebuilt.
+    return pathGuard.level;
+  });
+
+  ipcMain.handle(SECURITY_CHECK, (_e, path: string, op: 'read' | 'write') => {
+    return pathGuard.check(path, op);
   });
 
   // Agent handlers

@@ -88,7 +88,13 @@ export interface SkillInfo {
   loaded: boolean;
 }
 
+export type SecurityLevel = 'readonly' | 'workspace' | 'full';
+
 export interface AppSettings {
+  // Security
+  /** Path-level policy: readonly drops write-capable tools from sessions. */
+  securityLevel: SecurityLevel;
+
   // Agents
   activeAgentId: string | null;
 
