@@ -26,6 +26,7 @@ import {
   WORKSPACE_OPEN_IN_OS,
   AGENT_SEND_MESSAGE,
   AGENT_ABORT,
+  AGENT_REGENERATE,
   AGENT_NEW_SESSION,
   AGENT_SWITCH_SESSION,
   AGENT_DELETE_SESSION,
@@ -200,6 +201,11 @@ export function registerIpcHandlers(
 
   ipcMain.handle(AGENT_ABORT, async () => {
     await agentRuntime.abort();
+  });
+
+  ipcMain.handle(AGENT_REGENERATE, async () => {
+    agentRuntime.setMainWindow(getMainWindow());
+    await agentRuntime.regenerateLast();
   });
 
   // Settings handlers

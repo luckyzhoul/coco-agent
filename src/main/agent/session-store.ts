@@ -109,6 +109,27 @@ export function appendMessage(sessionId: string, message: Message): void {
     );
 }
 
+/**
+ * Remove assistant message rows that come after the last user message.
+ * Used by regenerate: the old reply is dropped before the model re-runs.
+ * Returns the number of deleted rows.
+ */
+export function deleteTrailingAssistantMessages(sessionId: string): number {
+  const db = getDb();
+  const lastUser = db
+    .prepare(
+      "SELECT rowid FROM messages WHERE session_id = ? AND role = 'user' ORDER BY rowid DESC LIMIT 1"
+    )
+    .get(sessionId) as { rowid: number } | undefined;
+  if (!lastUser) return 0;
+  const res = db
+    .prepare(
+      "DELETE FROM messages WHERE session_id = ? AND role = 'assistant' AND rowid > ?"
+    )
+    .run(sessionId, lastUser.rowid);
+  return Number(res.changes);
+}
+
 export function loadSessionMessages(sessionId: string): Message[] {
   const rows = getDb()
     .prepare(

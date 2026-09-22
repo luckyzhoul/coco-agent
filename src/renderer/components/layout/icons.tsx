@@ -259,6 +259,16 @@ export function CheckIcon({ className, style }: IconProps) {
   );
 }
 
+/** 复制 — 两个叠加的圆角矩形 */
+export function CopyIcon({ className, style }: IconProps) {
+  return (
+    <svg style={style} viewBox="0 0 24 24" fill="none" className={cn('w-4 h-4', className)} aria-hidden stroke="currentColor" strokeWidth="1.5">
+      <rect x="9" y="9" width="12" height="12" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /** 刷新 — 环形箭头 */
 export function RefreshCwIcon({ className, style }: IconProps) {
   return (

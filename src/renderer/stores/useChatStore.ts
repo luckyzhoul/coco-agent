@@ -73,6 +73,13 @@ function mergeConsecutiveAssistants(messages: Message[]): Message[] {
   return result;
 }
 
+function findLastUserIndex(messages: Message[]): number {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') return i;
+  }
+  return -1;
+}
+
 function findLastAssistantIndex(messages: Message[]): number {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'assistant') return i;
@@ -113,6 +120,7 @@ interface ChatState {
   updateToolCallPart: (messageId: string, partIndex: number, updates: Partial<ToolCall>) => void;
   addFileDelivery: (messageId: string, partIndex: number, file: { filePath: string; fileName: string; action: 'create' | 'edit'; fileSize?: number }) => void;
   addSummaryPart: (messageId: string, partIndex: number, summary: TurnSummary) => void;
+  removeTrailingAssistantMessages: () => void;
   updateToolCall: (messageId: string, toolCall: ToolCall) => void;
   updateToolResult: (toolCallId: string, output: string, status: string) => void;
   setStatus: (status: AgentStatus) => void;
@@ -377,6 +385,14 @@ export const useChatStore = create<ChatState>((set) => ({
       const updated = [...msgs];
       updated[idx] = { ...msg, parts };
       return { messages: updated };
+    }),
+
+  /** 重新生成前清掉最后一条用户消息之后的所有助手消息 */
+  removeTrailingAssistantMessages: () =>
+    set((state) => {
+      const lastUserIdx = findLastUserIndex(state.messages);
+      if (lastUserIdx < 0) return { messages: state.messages };
+      return { messages: state.messages.slice(0, lastUserIdx + 1) };
     }),
 
   // Legacy: attach a tool call to the last assistant message

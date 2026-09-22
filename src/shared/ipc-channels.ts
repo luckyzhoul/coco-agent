@@ -1,6 +1,7 @@
 // Agent control channels (renderer -> main)
 export const AGENT_SEND_MESSAGE = 'agent:sendMessage';
 export const AGENT_ABORT = 'agent:abort';
+export const AGENT_REGENERATE = 'agent:regenerate';
 export const AGENT_NEW_SESSION = 'agent:newSession';
 export const AGENT_SWITCH_SESSION = 'agent:switchSession';
 export const AGENT_DELETE_SESSION = 'agent:deleteSession';

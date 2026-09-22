@@ -1,13 +1,13 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { getDb } from '../db';
-import { settingsManager } from '../settings/SettingsManager';
-import { agentDir, agentSkillsDir, readPersona, writePersona } from './persona';
-import { ensureDir, paths } from '../paths';
-import { skillManager } from '../skills/SkillManager';
-import type { AgentInfo, SkillInfo } from '../../shared/types';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import type { AgentInfo, SkillInfo } from "../../shared/types";
+import { getDb } from "../db";
+import { ensureDir } from "../paths";
+import { settingsManager } from "../settings/SettingsManager";
+import { skillManager } from "../skills/SkillManager";
+import { agentDir, agentSkillsDir, readPersona, writePersona } from "./persona";
 
-export const DEFAULT_AGENT_ID = 'main';
+export const DEFAULT_AGENT_ID = "main";
 
 export type { AgentInfo };
 
@@ -25,17 +25,17 @@ function toInfo(row: AgentRow): AgentInfo {
     name: row.name,
     description: row.description,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
   };
 }
 
 function slugify(name: string): string {
   const base = name
     .toLowerCase()
-    .replace(/[^a-z0-9一-鿿]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+    .replace(/[^a-z0-9一-鿿]+/g, "-")
+    .replace(/^-+|-+$/g, "")
     .slice(0, 32);
-  return base || 'agent';
+  return base || "agent";
 }
 
 export class AgentManager {
@@ -45,19 +45,23 @@ export class AgentManager {
 
   list(): AgentInfo[] {
     const rows = getDb()
-      .prepare('SELECT * FROM agents ORDER BY created_at ASC')
+      .prepare("SELECT * FROM agents ORDER BY created_at ASC")
       .all() as unknown as AgentRow[];
     return rows.map(toInfo);
   }
 
   get(id: string): AgentInfo | undefined {
     const row = getDb()
-      .prepare('SELECT * FROM agents WHERE id = ?')
+      .prepare("SELECT * FROM agents WHERE id = ?")
       .get(id) as unknown as AgentRow | undefined;
     return row ? toInfo(row) : undefined;
   }
 
-  create(input: { name: string; description?: string; persona?: string }): AgentInfo {
+  create(input: {
+    name: string;
+    description?: string;
+    persona?: string;
+  }): AgentInfo {
     const db = getDb();
     const now = Date.now();
 
@@ -69,8 +73,8 @@ export class AgentManager {
     }
 
     db.prepare(
-      'INSERT INTO agents (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(id, input.name, input.description ?? '', now, now);
+      "INSERT INTO agents (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+    ).run(id, input.name, input.description ?? "", now, now);
 
     ensureDir(agentDir(id));
     ensureDir(agentSkillsDir(id));
@@ -81,17 +85,22 @@ export class AgentManager {
     return this.get(id)!;
   }
 
-  update(id: string, updates: Partial<Pick<AgentInfo, 'name' | 'description'>>): AgentInfo {
+  update(
+    id: string,
+    updates: Partial<Pick<AgentInfo, "name" | "description">>,
+  ): AgentInfo {
     const existing = this.get(id);
     if (!existing) throw new Error(`Agent not found: ${id}`);
 
     getDb()
-      .prepare('UPDATE agents SET name = ?, description = ?, updated_at = ? WHERE id = ?')
+      .prepare(
+        "UPDATE agents SET name = ?, description = ?, updated_at = ? WHERE id = ?",
+      )
       .run(
         updates.name ?? existing.name,
         updates.description ?? existing.description,
         Date.now(),
-        id
+        id,
       );
 
     // Keep the persona frontmatter name in sync when it exists.
@@ -105,20 +114,20 @@ export class AgentManager {
 
   delete(id: string): void {
     if (id === DEFAULT_AGENT_ID) {
-      throw new Error('The default agent cannot be deleted.');
+      throw new Error("The default agent cannot be deleted.");
     }
     if (this.list().length <= 1) {
-      throw new Error('At least one agent must remain.');
+      throw new Error("At least one agent must remain.");
     }
 
     const db = getDb();
-    db.prepare('DELETE FROM sessions WHERE agent_id = ?').run(id);
-    db.prepare('DELETE FROM memories WHERE agent_id = ?').run(id);
-    db.prepare('DELETE FROM agents WHERE id = ?').run(id);
+    db.prepare("DELETE FROM sessions WHERE agent_id = ?").run(id);
+    db.prepare("DELETE FROM memories WHERE agent_id = ?").run(id);
+    db.prepare("DELETE FROM agents WHERE id = ?").run(id);
 
     // Messages are keyed by session; remove any orphaned rows for this agent.
     db.prepare(
-      'DELETE FROM messages WHERE session_id NOT IN (SELECT id FROM sessions)'
+      "DELETE FROM messages WHERE session_id NOT IN (SELECT id FROM sessions)",
     ).run();
 
     try {
@@ -150,12 +159,14 @@ export class AgentManager {
 
   listEnabledSkills(agentId: string): string[] {
     const rows = getDb()
-      .prepare('SELECT skill_name FROM agent_skills WHERE agent_id = ?')
+      .prepare("SELECT skill_name FROM agent_skills WHERE agent_id = ?")
       .all(agentId) as unknown as { skill_name: string }[];
     return rows.map((r) => r.skill_name);
   }
 
-  getSkillsWithStatus(agentId: string): Array<SkillInfo & { enabled: boolean }> {
+  getSkillsWithStatus(
+    agentId: string,
+  ): Array<SkillInfo & { enabled: boolean }> {
     const enabled = new Set(this.listEnabledSkills(agentId));
     const all = skillManager.list();
     return all.map((skill) => ({ ...skill, enabled: enabled.has(skill.name) }));
@@ -170,14 +181,14 @@ export class AgentManager {
     const now = Date.now();
     getDb()
       .prepare(
-        'INSERT OR IGNORE INTO agent_skills (agent_id, skill_name, created_at) VALUES (?, ?, ?)'
+        "INSERT OR IGNORE INTO agent_skills (agent_id, skill_name, created_at) VALUES (?, ?, ?)",
       )
       .run(agentId, skillName, now);
 
     const linkPath = path.join(agentSkillsDir(agentId), skillName);
     if (!fs.existsSync(linkPath)) {
       try {
-        fs.symlinkSync(skill.path, linkPath, 'dir');
+        fs.symlinkSync(skill.path, linkPath, "dir");
       } catch {
         this.copyDir(skill.path, linkPath);
       }
@@ -189,7 +200,7 @@ export class AgentManager {
     if (!agent) throw new Error(`Agent not found: ${agentId}`);
 
     getDb()
-      .prepare('DELETE FROM agent_skills WHERE agent_id = ? AND skill_name = ?')
+      .prepare("DELETE FROM agent_skills WHERE agent_id = ? AND skill_name = ?")
       .run(agentId, skillName);
 
     const linkPath = path.join(agentSkillsDir(agentId), skillName);
@@ -218,9 +229,9 @@ export class AgentManager {
       const now = Date.now();
       getDb()
         .prepare(
-          'INSERT INTO agents (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+          "INSERT INTO agents (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         )
-        .run(DEFAULT_AGENT_ID, 'Main', 'Default assistant', now, now);
+        .run(DEFAULT_AGENT_ID, "Coco", "Default assistant", now, now);
       ensureDir(agentDir(DEFAULT_AGENT_ID));
       ensureDir(agentSkillsDir(DEFAULT_AGENT_ID));
     } catch {

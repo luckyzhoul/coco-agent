@@ -20,6 +20,7 @@ import type {
 import {
   AGENT_SEND_MESSAGE,
   AGENT_ABORT,
+  AGENT_REGENERATE,
   AGENT_NEW_SESSION,
   AGENT_SWITCH_SESSION,
   AGENT_DELETE_SESSION,
@@ -125,6 +126,7 @@ const electronAPI = {
     sendMessage: (content: string) =>
       ipcRenderer.invoke(AGENT_SEND_MESSAGE, content),
     abort: () => ipcRenderer.invoke(AGENT_ABORT),
+    regenerate: () => ipcRenderer.invoke(AGENT_REGENERATE),
     newSession: (workspacePath: string) =>
       ipcRenderer.invoke(AGENT_NEW_SESSION, workspacePath),
     switchSession: (sessionId: string) =>

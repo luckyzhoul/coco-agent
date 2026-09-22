@@ -3,35 +3,168 @@ import { useSettingsStore } from '../../stores/useSettingsStore';
 import { CheckIcon, CloseIcon } from '../layout/icons';
 import type { ModelConfig, ModelProvider, ModelTestResult } from '@shared/types';
 
+const providerLabels: Record<ModelProvider, string> = {
+  'openai-compatible': 'OpenAI 兼容',
+  'anthropic': 'Anthropic',
+  'ollama': 'Ollama（本地）',
+  'ark': 'Ark（豆包）'
+};
+
+interface ModelFormValues {
+  name: string;
+  provider: ModelProvider;
+  model: string;
+  baseUrl: string;
+  apiKey: string;
+  embeddingModel: string;
+}
+
+function toFormValues(model: ModelConfig): ModelFormValues {
+  return {
+    name: model.name,
+    provider: model.provider,
+    model: model.model,
+    baseUrl: model.baseUrl || '',
+    apiKey: model.apiKey || '',
+    embeddingModel: model.embeddingModel || ''
+  };
+}
+
+const EMPTY_FORM: ModelFormValues = {
+  name: '',
+  provider: 'openai-compatible',
+  model: '',
+  baseUrl: '',
+  apiKey: '',
+  embeddingModel: ''
+};
+
+export function ModelForm({
+  initial,
+  title,
+  submitLabel,
+  onSave,
+  onCancel
+}: {
+  initial?: ModelFormValues;
+  title: string;
+  submitLabel: string;
+  onSave: (values: ModelFormValues) => void;
+  onCancel: () => void;
+}) {
+  const [values, setValues] = useState<ModelFormValues>(initial || EMPTY_FORM);
+
+  const set = (patch: Partial<ModelFormValues>) => setValues({ ...values, ...patch });
+  const canSubmit = values.name.trim() !== '' && values.model.trim() !== '';
+
+  return (
+    <div className="bg-background border border-border rounded-lg p-4 space-y-4">
+      <h4 className="text-sm font-medium">{title}</h4>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">显示名称</label>
+          <input
+            type="text"
+            value={values.name}
+            onChange={(e) => set({ name: e.target.value })}
+            placeholder="我的 DeepSeek"
+            className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">提供商</label>
+          <select
+            value={values.provider}
+            onChange={(e) => set({ provider: e.target.value as ModelProvider })}
+            className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
+          >
+            {Object.entries(providerLabels).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">模型 ID</label>
+          <input
+            type="text"
+            value={values.model}
+            onChange={(e) => set({ model: e.target.value })}
+            placeholder="deepseek-chat"
+            className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">基础 URL</label>
+          <input
+            type="text"
+            value={values.baseUrl}
+            onChange={(e) => set({ baseUrl: e.target.value })}
+            placeholder="https://api.deepseek.com/v1"
+            className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
+          />
+        </div>
+
+        <div className="col-span-2">
+          <label className="text-xs text-muted-foreground block mb-1">API 密钥</label>
+          <input
+            type="password"
+            value={values.apiKey}
+            onChange={(e) => set({ apiKey: e.target.value })}
+            placeholder="sk-..."
+            className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
+          />
+        </div>
+
+        <div className="col-span-2">
+          <label className="text-xs text-muted-foreground block mb-1">
+            嵌入模型（可选 — 启用语义记忆检索）
+          </label>
+          <input
+            type="text"
+            value={values.embeddingModel}
+            onChange={(e) => set({ embeddingModel: e.target.value })}
+            placeholder="text-embedding-3-small"
+            className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="flex gap-2 justify-end">
+        <button
+          onClick={onCancel}
+          className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
+        >
+          取消
+        </button>
+        <button
+          onClick={() => canSubmit && onSave(values)}
+          disabled={!canSubmit}
+          className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
+        >
+          {submitLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function ModelsSettings() {
   const models = useSettingsStore((s) => s.models);
   const activeModelId = useSettingsStore((s) => s.activeModelId);
   const addModel = useSettingsStore((s) => s.addModel);
+  const updateModel = useSettingsStore((s) => s.updateModel);
   const deleteModel = useSettingsStore((s) => s.deleteModel);
   const setActiveModel = useSettingsStore((s) => s.setActiveModel);
 
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newModel, setNewModel] = useState({
-    name: '',
-    provider: 'openai-compatible' as ModelProvider,
-    model: '',
-    baseUrl: '',
-    apiKey: '',
-    embeddingModel: ''
-  });
 
-  const handleAdd = async () => {
-    if (!newModel.name || !newModel.model) return;
-    await addModel(newModel);
-    setNewModel({ name: '', provider: 'openai-compatible', model: '', baseUrl: '', apiKey: '', embeddingModel: '' });
+  const handleAdd = async (values: ModelFormValues) => {
+    await addModel(values);
     setShowAddForm(false);
-  };
-
-  const providerLabels: Record<ModelProvider, string> = {
-    'openai-compatible': 'OpenAI 兼容',
-    'anthropic': 'Anthropic',
-    'ollama': 'Ollama（本地）',
-    'ark': 'Ark（豆包）'
   };
 
   return (
@@ -52,96 +185,12 @@ export function ModelsSettings() {
       </div>
 
       {showAddForm && (
-        <div className="bg-background border border-border rounded-lg p-4 space-y-4">
-          <h4 className="text-sm font-medium">添加新模型</h4>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">显示名称</label>
-              <input
-                type="text"
-                value={newModel.name}
-                onChange={(e) => setNewModel({ ...newModel, name: e.target.value })}
-                placeholder="我的 DeepSeek"
-                className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">提供商</label>
-              <select
-                value={newModel.provider}
-                onChange={(e) => setNewModel({ ...newModel, provider: e.target.value as ModelProvider })}
-                className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
-              >
-                {Object.entries(providerLabels).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">模型 ID</label>
-              <input
-                type="text"
-                value={newModel.model}
-                onChange={(e) => setNewModel({ ...newModel, model: e.target.value })}
-                placeholder="deepseek-chat"
-                className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">基础 URL</label>
-              <input
-                type="text"
-                value={newModel.baseUrl}
-                onChange={(e) => setNewModel({ ...newModel, baseUrl: e.target.value })}
-                placeholder="https://api.deepseek.com/v1"
-                className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
-              />
-            </div>
-
-            <div className="col-span-2">
-              <label className="text-xs text-muted-foreground block mb-1">API 密钥</label>
-              <input
-                type="password"
-                value={newModel.apiKey}
-                onChange={(e) => setNewModel({ ...newModel, apiKey: e.target.value })}
-                placeholder="sk-..."
-                className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
-              />
-            </div>
-
-            <div className="col-span-2">
-              <label className="text-xs text-muted-foreground block mb-1">
-                嵌入模型（可选 — 启用语义记忆检索）
-              </label>
-              <input
-                type="text"
-                value={newModel.embeddingModel}
-                onChange={(e) => setNewModel({ ...newModel, embeddingModel: e.target.value })}
-                placeholder="text-embedding-3-small"
-                className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-sm"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2 justify-end">
-            <button
-              onClick={() => setShowAddForm(false)}
-              className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
-            >
-              取消
-            </button>
-            <button
-              onClick={handleAdd}
-              className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 transition-opacity"
-            >
-              添加
-            </button>
-          </div>
-        </div>
+        <ModelForm
+          title="添加新模型"
+          submitLabel="添加"
+          onSave={handleAdd}
+          onCancel={() => setShowAddForm(false)}
+        />
       )}
 
       {/* Model list */}
@@ -157,6 +206,7 @@ export function ModelsSettings() {
               model={model}
               isActive={model.id === activeModelId}
               onSetActive={() => setActiveModel(model.id)}
+              onUpdate={(values) => updateModel(model.id, values)}
               onDelete={() => deleteModel(model.id)}
             />
           ))
@@ -170,22 +220,18 @@ function ModelItem({
   model,
   isActive,
   onSetActive,
+  onUpdate,
   onDelete
 }: {
   model: ModelConfig;
   isActive: boolean;
   onSetActive: () => void;
+  onUpdate: (values: ModelFormValues) => Promise<void>;
   onDelete: () => void;
 }) {
-  const providerLabels: Record<ModelProvider, string> = {
-    'openai-compatible': 'OpenAI 兼容',
-    'anthropic': 'Anthropic',
-    'ollama': 'Ollama',
-    'ark': 'Ark'
-  };
-
   const [testResult, setTestResult] = useState<ModelTestResult | null>(null);
   const [testing, setTesting] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const handleTest = async () => {
     setTesting(true);
@@ -201,6 +247,11 @@ function ModelItem({
     } finally {
       setTesting(false);
     }
+  };
+
+  const handleSave = async (values: ModelFormValues) => {
+    await onUpdate(values);
+    setEditing(false);
   };
 
   return (
@@ -229,6 +280,12 @@ function ModelItem({
             </button>
           )}
           <button
+            onClick={() => setEditing(!editing)}
+            className="text-xs px-2 py-1 rounded border border-input hover:bg-accent transition-colors"
+          >
+            编辑
+          </button>
+          <button
             onClick={handleTest}
             disabled={testing}
             className="text-xs px-2 py-1 rounded border border-input hover:bg-accent disabled:opacity-50 transition-colors"
@@ -243,6 +300,18 @@ function ModelItem({
           </button>
         </div>
       </div>
+
+      {editing && (
+        <div className="mt-3">
+          <ModelForm
+            initial={toFormValues(model)}
+            title={`编辑「${model.name}」`}
+            submitLabel="保存"
+            onSave={handleSave}
+            onCancel={() => setEditing(false)}
+          />
+        </div>
+      )}
 
       {testResult && (
         <div
@@ -265,4 +334,3 @@ function ModelItem({
     </div>
   );
 }
-

@@ -57,6 +57,7 @@ import {
   updateSessionMeta,
   deleteSession as deleteSessionFromStore,
   appendMessage,
+  deleteTrailingAssistantMessages,
   loadSessionMessages,
   generateSessionId,
   searchSessions,
@@ -667,6 +668,50 @@ export class AgentRuntime {
     this.emit(AGENT_EVENT_MESSAGE, userMsg);
     this.messageCount++;
 
+    try {
+      this.setStatus({ state: 'thinking' });
+      await this.activeSession.prompt(content);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      this.emit(AGENT_EVENT_ERROR, errorMsg);
+      this.setStatus({ state: 'error' });
+    }
+  }
+
+  /**
+   * 重新生成最后一条回复：把 Pi 会话树回退到最后一条用户消息之前，
+   * 清掉应用库里的旧回复，然后用同一段用户输入重新 prompt。
+   */
+  async regenerateLast(): Promise<void> {
+    if (!this.activeSession || !this.activeSessionId) {
+      throw new Error('当前没有活动会话');
+    }
+    if (this.status.state !== 'idle' && this.status.state !== 'error') {
+      throw new Error('正在生成中，无法重新生成');
+    }
+
+    // Find the last user entry along the active branch of the Pi session tree
+    const branch = this.activeSession.sessionManager.getBranch();
+    const lastUserEntry = [...branch]
+      .reverse()
+      .find((e) => e.type === 'message' && e.message?.role === 'user');
+    if (!lastUserEntry) {
+      throw new Error('没有可重新生成的消息');
+    }
+
+    // Rewind context to just before that user message; Pi hands the text back
+    const nav = await this.activeSession.navigateTree(lastUserEntry.id);
+    if (nav.cancelled) return;
+    const content = (nav.editorText || '').trim();
+    if (!content) {
+      throw new Error('没有可重新生成的消息');
+    }
+
+    // Drop the old reply from the app DB and re-run
+    deleteTrailingAssistantMessages(this.activeSessionId);
+
+    this.resetTurnState();
+    this.turnStartTime = Date.now();
     try {
       this.setStatus({ state: 'thinking' });
       await this.activeSession.prompt(content);
