@@ -7,18 +7,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: 'hsl(240 10% 3.9%)',
-        foreground: 'hsl(0 0% 98%)',
-        card: 'hsl(240 6% 10%)',
-        'card-foreground': 'hsl(0 0% 98%)',
-        border: 'hsl(240 3.7% 15.9%)',
-        input: 'hsl(240 3.7% 15.9%)',
-        primary: 'hsl(240 5.9% 90%)',
-        'primary-foreground': 'hsl(240 5.9% 10%)',
-        secondary: 'hsl(240 3.7% 15.9%)',
-        muted: 'hsl(240 3.7% 15.9%)',
-        'muted-foreground': 'hsl(240 5% 64.9%)',
-        accent: 'hsl(240 3.7% 15.9%)'
+        background: '#F8F4EC',
+        foreground: '#3D3A36',
+        card: '#F0E8DA',
+        'card-foreground': '#3D3A36',
+        border: '#E6DDCE',
+        input: '#EDE5D6',
+        primary: '#3D3A36',
+        'primary-foreground': '#F8F4EC',
+        secondary: '#F0E8DA',
+        'secondary-foreground': '#3D3A36',
+        muted: '#EDE5D6',
+        'muted-foreground': '#8B857B',
+        accent: '#E8DFD0',
+        'accent-foreground': '#3D3A36',
+        'chat-user': '#E8DFD0',
+        'chat-assistant': '#FDFBF6'
+      },
+      fontFamily: {
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"PingFang SC"', '"Microsoft YaHei"', '"Segoe UI"', 'Roboto', 'sans-serif']
       },
       borderRadius: {
         lg: '0.5rem',

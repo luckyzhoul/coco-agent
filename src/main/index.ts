@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import path from 'node:path';
 import { initCocoHome } from './paths';
 import { initDb } from './db';
@@ -17,8 +17,9 @@ function createWindow(): void {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    frame: true,
-    backgroundColor: '#0a0a0f',
+    frame: false,
+    titleBarStyle: 'hidden',
+    backgroundColor: '#F8F4EC',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -27,6 +28,8 @@ function createWindow(): void {
       webSecurity: true
     }
   });
+
+  Menu.setApplicationMenu(null);
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);

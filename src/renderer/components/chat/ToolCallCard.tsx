@@ -7,9 +7,9 @@ interface ToolCallCardProps {
 
 const statusColors: Record<ToolCall['status'], string> = {
   pending: 'text-muted-foreground',
-  running: 'text-blue-400',
-  success: 'text-green-400',
-  error: 'text-red-400'
+  running: 'text-[#5B7FA6]',
+  success: 'text-emerald-600',
+  error: 'text-red-500'
 };
 
 const statusIcons: Record<ToolCall['status'], string> = {
@@ -25,10 +25,10 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
   const hasOutput = toolCall.output && toolCall.output.length > 0;
 
   return (
-    <div className="my-2 rounded-lg border border-border bg-card overflow-hidden">
+    <div className="my-2 rounded-xl border border-border/50 bg-chat-assistant/60 overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent/50 transition-colors text-left"
+        className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent/60 transition-colors text-left"
       >
         <span className={statusColors[toolCall.status]}>
           {statusIcons[toolCall.status]}
@@ -59,7 +59,7 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
           )}
 
           {toolCall.error && (
-            <div className="text-red-400 text-sm">
+            <div className="text-red-500 text-sm">
               Error: {toolCall.error}
             </div>
           )}

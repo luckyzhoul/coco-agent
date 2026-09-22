@@ -36,10 +36,10 @@ export function ToolApprovalModal() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-card border border-border rounded-lg w-[500px] max-h-[80vh] flex flex-col shadow-2xl">
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div className="bg-chat-assistant border border-border/60 rounded-2xl w-[500px] max-h-[80vh] flex flex-col shadow-xl">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border">
+        <div className="px-6 py-4 border-b border-border/50">
           <div className="flex items-center gap-3">
             <div className={`w-3 h-3 rounded-full ${
               currentRequest.isDangerous ? 'bg-red-500' : 'bg-yellow-500'
@@ -77,7 +77,7 @@ export function ToolApprovalModal() {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border flex gap-2 justify-end">
+        <div className="px-6 py-4 border-t border-border/50 flex gap-2 justify-end">
           <button
             onClick={handleDeny}
             className="px-4 py-2 rounded-md text-sm border border-input hover:bg-accent transition-colors"

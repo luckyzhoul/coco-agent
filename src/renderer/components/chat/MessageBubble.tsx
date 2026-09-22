@@ -12,14 +12,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   return (
     <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+        className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm ${
           isUser
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-card text-card-foreground border border-border'
+            ? 'bg-chat-user text-foreground'
+            : 'bg-chat-assistant text-foreground border border-border/50'
         }`}
       >
         {!isUser && (
-          <div className="mb-1 text-xs font-semibold text-muted-foreground">
+          <div className="mb-1.5 text-xs font-medium text-[#5B7FA6]">
             CocoAgent
           </div>
         )}
@@ -28,7 +28,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           {message.content || (
             <span className="text-muted-foreground italic">
               {message.toolCalls && message.toolCalls.length > 0
-                ? 'Processing...'
+                ? '处理中...'
                 : ''}
             </span>
           )}

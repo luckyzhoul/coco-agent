@@ -74,7 +74,11 @@ import {
   UPDATE_CHECK,
   UPDATE_DOWNLOAD,
   UPDATE_QUIT_AND_INSTALL,
-  UPDATE_SET_FEED
+  UPDATE_SET_FEED,
+  WINDOW_MINIMIZE,
+  WINDOW_TOGGLE_MAXIMIZE,
+  WINDOW_CLOSE,
+  WINDOW_IS_MAXIMIZED
 } from '../../shared/ipc-channels';
 import type { AppSettings, ModelConfig, MCPConfig, ToolApprovalDecision } from '../../shared/types';
 import { paths } from '../paths';
@@ -386,6 +390,31 @@ export function registerIpcHandlers(
 
   // Initialize approval manager from persisted settings
   approvalManager.setAutoApproveAll(settingsManager.get().autoApproveTools);
+
+  // Window control handlers
+  ipcMain.handle(WINDOW_MINIMIZE, () => {
+    getMainWindow()?.minimize();
+  });
+
+  ipcMain.handle(WINDOW_TOGGLE_MAXIMIZE, () => {
+    const win = getMainWindow();
+    if (!win) return false;
+    if (win.isMaximized()) {
+      win.unmaximize();
+      return false;
+    } else {
+      win.maximize();
+      return true;
+    }
+  });
+
+  ipcMain.handle(WINDOW_CLOSE, () => {
+    getMainWindow()?.close();
+  });
+
+  ipcMain.handle(WINDOW_IS_MAXIMIZED, () => {
+    return getMainWindow()?.isMaximized() ?? false;
+  });
 
   // Initialize updater (inert unless packaged)
   updateManager.setMainWindow(getMainWindow());

@@ -95,3 +95,9 @@ export const UPDATE_DOWNLOAD = 'update:download';
 export const UPDATE_QUIT_AND_INSTALL = 'update:quitAndInstall';
 export const UPDATE_SET_FEED = 'update:setFeed';
 export const UPDATE_EVENT = 'update:event';
+
+// Window control channels
+export const WINDOW_MINIMIZE = 'window:minimize';
+export const WINDOW_TOGGLE_MAXIMIZE = 'window:toggleMaximize';
+export const WINDOW_CLOSE = 'window:close';
+export const WINDOW_IS_MAXIMIZED = 'window:isMaximized';
