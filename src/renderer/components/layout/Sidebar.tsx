@@ -4,6 +4,20 @@ import { useSessionStore } from '../../stores/useSessionStore';
 import { useChatStore } from '../../stores/useChatStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useAgentStore } from '../../stores/useAgentStore';
+import {
+  PlusIcon,
+  SettingsIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PaperclipIcon,
+  ActivityIcon,
+  ClockIcon,
+  WrenchIcon,
+  SearchIcon,
+  PinIcon,
+  CloseIcon,
+  PlugIcon
+} from './icons';
 import type { SessionInfo } from '@shared/types';
 
 interface SidebarProps {
@@ -209,7 +223,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
       >
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1">
-            {session.pinned && <span className="shrink-0 text-[10px] text-primary">📌</span>}
+            {session.pinned && <PinIcon className="shrink-0 text-primary" />}
             <span className="truncate text-[13px] font-medium">{session.title}</span>
           </span>
           <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/80">
@@ -220,16 +234,16 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
           <span
             onClick={(e) => handleTogglePin(e, session)}
             title={session.pinned ? '取消置顶' : '置顶'}
-            className="rounded p-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+            className="rounded p-0.5 text-muted-foreground hover:text-foreground"
           >
-            📌
+            <PinIcon />
           </span>
           <span
             onClick={(e) => handleDeleteSession(e, session)}
             title="删除会话"
-            className="rounded p-0.5 text-[11px] text-muted-foreground hover:text-destructive"
+            className="rounded p-0.5 text-muted-foreground hover:text-destructive"
           >
-            ✕
+            <CloseIcon />
           </span>
         </span>
       </button>
@@ -247,37 +261,27 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
             className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             title="新建对话"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-            </svg>
+            <PlusIcon />
           </button>
           <button
             onClick={onOpenSettings}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             title="设置"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" strokeLinejoin="round" />
-            </svg>
+            <SettingsIcon />
           </button>
           <button
             className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             title="收起侧栏"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <ChevronLeftIcon />
           </button>
         </div>
       </div>
 
       <div className="px-3 pb-3">
         <div className="flex items-center gap-2 rounded-xl bg-input/60 px-3 py-2 text-sm">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#5B7FA6]">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <PaperclipIcon className="text-[#5B7FA6]" />
           <span className="truncate flex-1 text-left text-foreground/80">
             {currentWorkspace?.name || '选择工作台'}
           </span>
@@ -287,22 +291,15 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
 
       <div className="px-3 pb-2 space-y-0.5">
         <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round" />
-          </svg>
+          <ActivityIcon />
           <span>助手活动</span>
         </button>
         <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 7v5l3 2" strokeLinecap="round" />
-          </svg>
+          <ClockIcon />
           <span>任务计划</span>
         </button>
         <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" strokeLinejoin="round" />
-          </svg>
+          <WrenchIcon />
           <span>Skills</span>
         </button>
       </div>
@@ -316,35 +313,16 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
               onClick={() => setShowSessionsSection(!showSessionsSection)}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
+              <ChevronRightIcon
                 style={{ transform: showSessionsSection ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
-              >
-                <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              />
             </button>
             <span className="text-xs font-medium text-muted-foreground">搜索聊天记录</span>
           </div>
 
           <div className="px-1 mb-2">
             <div className="relative">
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50"
-              >
-                <circle cx="11" cy="11" r="7" />
-                <path d="m21 21-4.3-4.3" strokeLinecap="round" />
-              </svg>
+              <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
               <input
                 type="text"
                 value={searchQuery}
@@ -428,18 +406,11 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
             onClick={() => setShowMcpSection(!showMcpSection)}
             className="flex w-full items-center gap-2 mb-2 px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
+            <ChevronRightIcon
               style={{ transform: showMcpSection ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
-            >
-              <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span>🔌 MCP</span>
+            />
+            <PlugIcon />
+            <span>MCP</span>
             <span className="ml-auto text-xs text-muted-foreground/70">
               {runningMcpCount}/{mcpServers.length} 运行中
             </span>
@@ -480,18 +451,11 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
             onClick={() => setShowSkillsSection(!showSkillsSection)}
             className="flex w-full items-center gap-2 mb-2 px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
+            <ChevronRightIcon
               style={{ transform: showSkillsSection ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
-            >
-              <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span>🧩 Skills</span>
+            />
+            <WrenchIcon />
+            <span>Skills</span>
             <span className="ml-auto text-xs text-muted-foreground/70">{skills.length} 已加载</span>
           </button>
 
@@ -541,7 +505,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
               className="text-muted-foreground hover:text-foreground transition-colors"
               title="关闭浏览器"
             >
-              ✕
+              <CloseIcon className="w-3 h-3" />
             </button>
           </div>
         )}

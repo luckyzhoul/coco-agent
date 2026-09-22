@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSettingsStore } from '../../stores/useSettingsStore';
+import { RefreshCwIcon, CloseIcon } from '../layout/icons';
 import type { SkillInfo } from '@shared/types';
 
 interface CatalogEntry {
@@ -148,7 +149,8 @@ export function SkillsSettings() {
               onClick={loadSkills}
               className="px-3 py-1.5 rounded-md text-sm border border-input hover:bg-accent transition-colors"
             >
-              ↻ 重新加载
+              <RefreshCwIcon className="w-3.5 h-3.5 inline-block align-[-2px] mr-1" />
+              重新加载
             </button>
             <button
               onClick={handleInstallFolder}
@@ -340,9 +342,9 @@ export function SkillsSettings() {
               </div>
               <button
                 onClick={() => setDetail(null)}
-                className="text-muted-foreground hover:text-foreground text-xl"
+                className="text-muted-foreground hover:text-foreground"
               >
-                ✕
+                <CloseIcon className="w-5 h-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-6">

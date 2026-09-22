@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSettingsStore } from '../../stores/useSettingsStore';
+import { CheckIcon, CloseIcon } from '../layout/icons';
 import type { ModelConfig, ModelProvider, ModelTestResult } from '@shared/types';
 
 export function ModelsSettings() {
@@ -251,9 +252,9 @@ function ModelItem({
               : 'bg-destructive/10 border border-destructive/30 text-destructive'
           }`}
         >
-          <div className="font-medium">
-            {testResult.ok ? '✓ ' : '✕ '}
-            {testResult.message}
+          <div className="font-medium flex items-center gap-1.5">
+            {testResult.ok ? <CheckIcon className="w-3.5 h-3.5" /> : <CloseIcon className="w-3.5 h-3.5" />}
+            <span>{testResult.message}</span>
             {typeof testResult.latencyMs === 'number' && ` (${testResult.latencyMs}ms)`}
           </div>
           {testResult.reply && (

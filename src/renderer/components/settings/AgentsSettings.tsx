@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAgentStore } from '../../stores/useAgentStore';
+import { CheckIcon } from '../layout/icons';
 
 export function AgentsSettings() {
   const agents = useAgentStore((s) => s.agents);
@@ -217,7 +218,12 @@ export function AgentsSettings() {
               disabled={savingPersona}
               className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {savingPersona ? '保存中…' : personaSaved ? '✓ 已保存' : '保存人格'}
+              {savingPersona ? '保存中…' : personaSaved ? (
+                <span className="inline-flex items-center gap-1">
+                  <CheckIcon className="w-3.5 h-3.5" />
+                  已保存
+                </span>
+              ) : '保存人格'}
             </button>
           </div>
           <textarea

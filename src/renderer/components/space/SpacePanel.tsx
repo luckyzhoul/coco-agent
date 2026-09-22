@@ -6,7 +6,7 @@ import { FileBrowser } from './FileBrowser';
 import { FileViewer } from './FileViewer';
 import { SpaceFooter } from './SpaceFooter';
 import { ExternalIcon } from './icons';
-import { SidebarRightIcon } from '../layout/icons';
+import { SidebarRightIcon, RefreshCwIcon } from '../layout/icons';
 
 export function SpacePanel() {
   const open = useUiStore((s) => s.spacePanelOpen);
@@ -73,10 +73,10 @@ export function SpacePanel() {
           </button>
           <button
             onClick={refresh}
-            className="shrink-0 rounded-md border border-border/70 px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="shrink-0 rounded-md border border-border/70 px-1.5 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             title="刷新文件列表"
           >
-            ↻
+            <RefreshCwIcon className="w-3.5 h-3.5" />
           </button>
         </div>
 

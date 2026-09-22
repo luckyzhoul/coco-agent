@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { SecurityLevel } from '@shared/types';
 import { useSettingsStore } from '../../stores/useSettingsStore';
+import { CheckIcon } from '../layout/icons';
 
 const LEVEL_INFO: Record<SecurityLevel, { label: string; detail: string }> = {
   readonly: {
@@ -104,7 +105,12 @@ export function SecuritySettings() {
         </div>
       </div>
 
-      {saved && <div className="text-xs text-emerald-600">✓ 已保存 — 将应用于新会话。</div>}
+      {saved && (
+        <div className="flex items-center gap-1 text-xs text-emerald-600">
+          <CheckIcon className="w-3.5 h-3.5" />
+          已保存 — 将应用于新会话。
+        </div>
+      )}
     </div>
   );
 }

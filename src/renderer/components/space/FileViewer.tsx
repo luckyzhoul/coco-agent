@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { isTabDirty, useSpaceStore } from '../../stores/useSpaceStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { FileIcon } from './icons';
+import { CloseIcon } from '../layout/icons';
 
 const EDITOR_FONT =
   "'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Noto Sans Mono CJK SC', monospace";
@@ -40,7 +41,7 @@ function TabStrip() {
               className="shrink-0 rounded px-0.5 text-muted-foreground/60 transition-colors hover:text-destructive"
               title="关闭"
             >
-              ✕
+              <CloseIcon className="w-3 h-3" />
             </button>
           </div>
         );

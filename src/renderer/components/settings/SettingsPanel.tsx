@@ -7,6 +7,16 @@ import { GeneralSettings } from './GeneralSettings';
 import { UpdateSettings } from './UpdateSettings';
 import { AgentsSettings } from './AgentsSettings';
 import { SecuritySettings } from './SecuritySettings';
+import {
+  CogIcon,
+  UserIcon,
+  ShieldIcon,
+  BrainIcon,
+  PlugIcon,
+  PuzzleIcon,
+  UploadIcon,
+  CloseIcon
+} from '../layout/icons';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -14,14 +24,14 @@ interface SettingsPanelProps {
 
 type TabId = 'general' | 'agents' | 'security' | 'models' | 'mcp' | 'skills' | 'updates';
 
-const tabs: { id: TabId; label: string; icon: string }[] = [
-  { id: 'general', label: '通用', icon: '⚙️' },
-  { id: 'agents', label: 'Agent', icon: '🎭' },
-  { id: 'security', label: '安全', icon: '🛡️' },
-  { id: 'models', label: '模型', icon: '🧠' },
-  { id: 'mcp', label: 'MCP 服务', icon: '🔌' },
-  { id: 'skills', label: '技能', icon: '🧩' },
-  { id: 'updates', label: '更新', icon: '⬆️' }
+const tabs: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'general', label: '通用', icon: CogIcon },
+  { id: 'agents', label: 'Agent', icon: UserIcon },
+  { id: 'security', label: '安全', icon: ShieldIcon },
+  { id: 'models', label: '模型', icon: BrainIcon },
+  { id: 'mcp', label: 'MCP 服务', icon: PlugIcon },
+  { id: 'skills', label: '技能', icon: PuzzleIcon },
+  { id: 'updates', label: '更新', icon: UploadIcon }
 ];
 
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
@@ -41,9 +51,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           <h2 className="text-lg font-semibold">Settings</h2>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors text-xl"
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
-            ✕
+            <CloseIcon className="w-5 h-5" />
           </button>
         </div>
 
@@ -60,7 +70,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
                 }`}
               >
-                <span>{tab.icon}</span>
+                <tab.icon className="w-4 h-4" />
                 <span>{tab.label}</span>
               </button>
             ))}

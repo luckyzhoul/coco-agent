@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { ToolCall } from '@shared/types';
+import { ChevronUpIcon, ChevronDownIcon } from '../layout/icons';
 
 interface ToolCallCardProps {
   toolCall: ToolCall;
@@ -34,7 +35,9 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
           {statusLabels[toolCall.status]}
         </span>
         <span className="truncate font-medium text-foreground/90">{toolCall.name}</span>
-        <span className="ml-auto shrink-0 text-muted-foreground/60">{expanded ? '▲' : '▼'}</span>
+        <span className="ml-auto shrink-0 text-muted-foreground/60">
+          {expanded ? <ChevronUpIcon className="w-3 h-3" /> : <ChevronDownIcon className="w-3 h-3" />}
+        </span>
       </button>
 
       {expanded && (

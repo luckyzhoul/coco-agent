@@ -3,6 +3,7 @@ import type { Message } from '@shared/types';
 import { MessageBubble } from './MessageBubble';
 import { useSessionStore } from '../../stores/useSessionStore';
 import { useSpaceStore } from '../../stores/useSpaceStore';
+import { SparkleIcon } from '../layout/icons';
 
 interface MessageListProps {
   messages: Message[];
@@ -29,7 +30,7 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                 background: 'linear-gradient(135deg, #5B7FA6 0%, #3D5A80 100%)'
               }}
             >
-              <span className="text-white/90">✦</span>
+              <SparkleIcon className="text-white/90 w-8 h-8" />
             </div>
           </div>
 

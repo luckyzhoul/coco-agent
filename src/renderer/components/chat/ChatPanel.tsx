@@ -3,6 +3,7 @@ import { useChatStore } from '../../stores/useChatStore';
 import { useAgentEvent, useIpcRenderer } from '../../hooks/useIpcRenderer';
 import { MessageList } from './MessageList';
 import { ChatInput } from './ChatInput';
+import { AlertIcon, CloseIcon } from '../layout/icons';
 import type { Message, AgentStatus, ToolCall } from '@shared/types';
 
 export function ChatPanel() {
@@ -59,14 +60,14 @@ export function ChatPanel() {
       {error && (
         <div className="mx-auto mb-1 flex w-full max-w-3xl items-start gap-2 px-4">
           <div className="flex min-w-0 flex-1 items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-[11.5px] text-destructive">
-            <span className="shrink-0">⚠</span>
+            <AlertIcon className="shrink-0 w-4 h-4 mt-[1px]" />
             <span className="min-w-0 flex-1 whitespace-pre-wrap">{error}</span>
             <button
               onClick={() => setError(null)}
               className="shrink-0 opacity-60 transition-opacity hover:opacity-100"
               title="关闭"
             >
-              ✕
+              <CloseIcon className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
