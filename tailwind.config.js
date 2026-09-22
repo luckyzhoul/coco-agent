@@ -9,33 +9,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: withAlpha('--background'),
-        foreground: withAlpha('--foreground'),
-        card: withAlpha('--card'),
-        'card-foreground': withAlpha('--card-foreground'),
-        panel: withAlpha('--panel'),
-        'panel-foreground': withAlpha('--panel-foreground'),
-        border: withAlpha('--border'),
-        input: withAlpha('--input'),
-        ring: withAlpha('--ring'),
-        primary: withAlpha('--primary'),
-        'primary-foreground': withAlpha('--primary-foreground'),
-        secondary: withAlpha('--secondary'),
-        'secondary-foreground': withAlpha('--secondary-foreground'),
-        muted: withAlpha('--muted'),
-        'muted-foreground': withAlpha('--muted-foreground'),
-        accent: withAlpha('--accent'),
-        'accent-foreground': withAlpha('--accent-foreground'),
-        destructive: withAlpha('--destructive'),
-        'destructive-foreground': withAlpha('--destructive-foreground')
+        background: '#F8F4EC',
+        foreground: '#3D3A36',
+        card: '#F0E8DA',
+        'card-foreground': '#3D3A36',
+        border: '#E6DDCE',
+        input: '#EDE5D6',
+        primary: '#3D3A36',
+        'primary-foreground': '#F8F4EC',
+        secondary: '#F0E8DA',
+        'secondary-foreground': '#3D3A36',
+        muted: '#EDE5D6',
+        'muted-foreground': '#8B857B',
+        accent: '#E8DFD0',
+        'accent-foreground': '#3D3A36',
+        'chat-user': '#E8DFD0',
+        'chat-assistant': '#FDFBF6'
       },
       fontFamily: {
-        sans: ['var(--font-sans-cjk)'],
-        serif: ['var(--font-serif-cjk)']
-      },
-      boxShadow: {
-        soft: 'var(--shadow-soft)',
-        lifted: 'var(--shadow-lifted)'
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"PingFang SC"', '"Microsoft YaHei"', '"Segoe UI"', 'Roboto', 'sans-serif']
       },
       borderRadius: {
         lg: '0.5rem',

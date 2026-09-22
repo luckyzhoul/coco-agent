@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import path from 'node:path';
 import { initCocoHome } from './paths';
 import { initDb } from './db';
@@ -22,8 +22,9 @@ function createWindow(): void {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    frame: true,
-    backgroundColor: '#FAF7F0',
+    frame: false,
+    titleBarStyle: 'hidden',
+    backgroundColor: '#F8F4EC',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -33,13 +34,11 @@ function createWindow(): void {
     }
   });
 
-  // electron-vite v2+ exports ELECTRON_RENDERER_URL; older versions used
-  // VITE_DEV_SERVER_URL. Accept both, otherwise dev silently loads the last
-  // build from out/renderer and hot reload appears broken.
-  const devServerUrl = process.env.ELECTRON_RENDERER_URL || process.env.VITE_DEV_SERVER_URL;
+  Menu.setApplicationMenu(null);
 
-  if (devServerUrl) {
-    mainWindow.loadURL(devServerUrl);
+  if (process.env.VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }

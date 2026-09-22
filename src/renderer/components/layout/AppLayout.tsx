@@ -9,7 +9,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, onOpenSettings }: AppLayoutProps) {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-background">
       <Titlebar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar onOpenSettings={onOpenSettings} />

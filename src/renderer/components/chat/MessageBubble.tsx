@@ -9,15 +9,27 @@ interface MessageBubbleProps {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
-  // 用户消息走气泡，助手消息直接落在纸面上（阅读感更好，也贴近参考稿）。
-  if (!isUser) {
-    return (
-      <div className="w-full">
-        <div className="mb-1.5 text-[11px] tracking-wider text-muted-foreground/70">助手</div>
-        <div className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground/90">
+  return (
+    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm ${
+          isUser
+            ? 'bg-chat-user text-foreground'
+            : 'bg-chat-assistant text-foreground border border-border/50'
+        }`}
+      >
+        {!isUser && (
+          <div className="mb-1.5 text-xs font-medium text-[#5B7FA6]">
+            CocoAgent
+          </div>
+        )}
+
+        <div className="whitespace-pre-wrap text-sm leading-relaxed">
           {message.content || (
-            <span className="italic text-muted-foreground/70">
-              {message.toolCalls && message.toolCalls.length > 0 ? '处理中…' : ''}
+            <span className="text-muted-foreground italic">
+              {message.toolCalls && message.toolCalls.length > 0
+                ? '处理中...'
+                : ''}
             </span>
           )}
         </div>

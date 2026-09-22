@@ -55,38 +55,82 @@ export function ChatInput() {
   };
 
   return (
-    <div className="shrink-0 px-4 pb-4 pt-2">
+    <div className="border-t border-border/60 bg-background/80 backdrop-blur-sm p-4">
       <div className="mx-auto max-w-3xl">
-        <div className="flex items-end gap-2 rounded-xl border border-border bg-card shadow-soft transition-shadow focus-within:shadow-lifted">
+        <div className="rounded-2xl border border-border/60 bg-chat-assistant shadow-sm overflow-hidden">
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={activeSessionId ? '说点什么…' : '先新建一个会话'}
+            placeholder={activeSessionId ? '试试 /rc，在手机上操作你的电脑' : '先开始一个新会话'}
             disabled={!activeSessionId}
             rows={1}
-            className="min-h-[2.5rem] flex-1 resize-none bg-transparent px-3.5 py-2.5 text-[13.5px] outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
+            className="w-full resize-none bg-transparent px-5 pt-4 pb-2 text-sm outline-none placeholder:text-muted-foreground/60 disabled:opacity-50 text-foreground"
           />
-          {isBusy ? (
-            <button
-              onClick={handleAbort}
-              className="mb-2 mr-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/20"
-            >
-              停止
-            </button>
-          ) : (
-            <button
-              onClick={handleSend}
-              disabled={!canSend}
-              className="mb-2 mr-2 rounded-lg bg-primary px-3.5 py-1.5 text-xs text-primary-foreground transition-opacity enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              发送
-            </button>
-          )}
-        </div>
-        <div className="mt-1.5 px-1 text-[11px] text-muted-foreground/60">
-          Enter 发送，Shift + Enter 换行
+          <div className="flex items-center justify-between px-3 pb-3">
+            <div className="flex items-center gap-1">
+              <button
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                title="添加文件"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+                </svg>
+              </button>
+              <button
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                title="工具"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                title="安全模式"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                title="选择模型"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" strokeLinecap="round" />
+                </svg>
+                <span>请选择模型</span>
+              </button>
+              {isBusy ? (
+                <button
+                  onClick={handleAbort}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-red-500/15 text-red-500 text-sm hover:bg-red-500/25 transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="6" y="6" width="12" height="12" rx="1" />
+                  </svg>
+                  停止
+                </button>
+              ) : (
+                <button
+                  onClick={handleSend}
+                  disabled={!canSend}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#5B7FA6] text-white text-sm hover:bg-[#4A6D91] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  发送
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

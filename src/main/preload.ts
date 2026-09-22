@@ -97,7 +97,11 @@ import {
   UPDATE_DOWNLOAD,
   UPDATE_QUIT_AND_INSTALL,
   UPDATE_SET_FEED,
-  UPDATE_EVENT
+  UPDATE_EVENT,
+  WINDOW_MINIMIZE,
+  WINDOW_TOGGLE_MAXIMIZE,
+  WINDOW_CLOSE,
+  WINDOW_IS_MAXIMIZED
 } from '../shared/ipc-channels';
 import type {
   ToolApprovalRequest,
@@ -333,6 +337,12 @@ const electronAPI = {
   computer: {
     getScreenInfo: () =>
       ipcRenderer.invoke(COMPUTER_GET_SCREEN_INFO) as Promise<{ width: number; height: number; scaleFactor: number }>
+  },
+  window: {
+    minimize: () => ipcRenderer.invoke(WINDOW_MINIMIZE),
+    toggleMaximize: () => ipcRenderer.invoke(WINDOW_TOGGLE_MAXIMIZE) as Promise<boolean>,
+    close: () => ipcRenderer.invoke(WINDOW_CLOSE),
+    isMaximized: () => ipcRenderer.invoke(WINDOW_IS_MAXIMIZED) as Promise<boolean>
   }
 };
 

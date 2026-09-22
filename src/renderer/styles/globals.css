@@ -80,7 +80,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: var(--font-sans-cjk);
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif;
   }
 
   #root {
@@ -88,8 +88,8 @@
   }
 
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -97,11 +97,11 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted rounded-md;
+    @apply bg-muted-foreground/20 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/30;
+    @apply bg-muted-foreground/35;
   }
 }
 
