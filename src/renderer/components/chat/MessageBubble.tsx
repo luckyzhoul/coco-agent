@@ -5,26 +5,13 @@ import { useAgentStore } from '../../stores/useAgentStore';
 import { useChatStore } from '../../stores/useChatStore';
 import { useIpcRenderer } from '../../hooks/useIpcRenderer';
 import { RefreshCwIcon, CopyIcon, CheckIcon } from '../layout/icons';
+import { AgentAvatar } from './AgentAvatar';
 
 // Note: the turn summary pill was replaced by the per-message action bar.
 
 interface MessageBubbleProps {
   message: Message;
   isLast?: boolean;
-}
-
-function Avatar({ name }: { name: string }) {
-  const initial = name?.charAt(0)?.toUpperCase() || '?';
-  return (
-    <div
-      className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm"
-      style={{
-        background: 'linear-gradient(135deg, #5B7FA6 0%, #3D5A80 100%)'
-      }}
-    >
-      {initial}
-    </div>
-  );
 }
 
 /** 提取一条助手消息的可复制文本（只取 text part） */
@@ -124,7 +111,12 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
   return (
     <div className="flex w-full justify-start gap-3">
       <div className="pt-1">
-        <Avatar name={agentName} />
+        <AgentAvatar
+          name={agentName}
+          agentId={activeAgent?.id ?? 'main'}
+          icon={activeAgent?.icon}
+          size="lg"
+        />
       </div>
       <div className="flex-1 min-w-0 max-w-[calc(100%-3.5rem)]">
         <div className="mb-1 text-xs font-medium text-[#5B7FA6]">

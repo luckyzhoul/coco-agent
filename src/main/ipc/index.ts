@@ -4,6 +4,8 @@ import { dialog, shell } from 'electron';
 import { workspaceManager } from '../workspace/WorkspaceManager';
 import { fileService } from '../workspace/FileService';
 import { agentRuntime } from '../agent/AgentRuntime';
+import { readIconDataUrl, saveUploadedIcon } from '../agents/icon';
+import { CUSTOM_ICON } from '../../shared/agentIcons';
 import { settingsManager } from '../settings/SettingsManager';
 import { modelManager } from '../models/ModelManager';
 import { mcpManager } from '../mcp/McpManager';
@@ -84,6 +86,8 @@ import {
   AGENTS_SET_ACTIVE,
   AGENTS_GET_PERSONA,
   AGENTS_SET_PERSONA,
+  AGENTS_UPLOAD_ICON,
+  AGENTS_GET_ICON,
   AGENT_SKILLS_LIST,
   AGENT_SKILLS_ENABLE,
   AGENT_SKILLS_DISABLE,
@@ -400,13 +404,19 @@ export function registerIpcHandlers(
     return agentManager.list();
   });
 
-  ipcMain.handle(AGENTS_CREATE, (_e, input: { name: string; description?: string; persona?: string }) => {
-    return agentManager.create(input);
-  });
+  ipcMain.handle(
+    AGENTS_CREATE,
+    (_e, input: { name: string; description?: string; persona?: string; icon?: string }) => {
+      return agentManager.create(input);
+    },
+  );
 
-  ipcMain.handle(AGENTS_UPDATE, (_e, id: string, updates: { name?: string; description?: string }) => {
-    return agentManager.update(id, updates);
-  });
+  ipcMain.handle(
+    AGENTS_UPDATE,
+    (_e, id: string, updates: { name?: string; description?: string; icon?: string }) => {
+      return agentManager.update(id, updates);
+    },
+  );
 
   ipcMain.handle(AGENTS_DELETE, (_e, id: string) => {
     agentManager.delete(id);
@@ -433,6 +443,23 @@ export function registerIpcHandlers(
     const agent = agentManager.get(id);
     if (!agent) throw new Error(`Agent not found: ${id}`);
     writePersona(id, { name: agent.name, description: agent.description, body });
+  });
+
+  ipcMain.handle(AGENTS_UPLOAD_ICON, async (_e, id: string) => {
+    const win = getMainWindow();
+    const result = await dialog.showOpenDialog(win!, {
+      title: '选择头像图片',
+      properties: ['openFile'],
+      filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg'] }],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+
+    saveUploadedIcon(id, result.filePaths[0]);
+    return agentManager.update(id, { icon: CUSTOM_ICON });
+  });
+
+  ipcMain.handle(AGENTS_GET_ICON, (_e, id: string) => {
+    return readIconDataUrl(id);
   });
 
   // Agent skill assignment handlers

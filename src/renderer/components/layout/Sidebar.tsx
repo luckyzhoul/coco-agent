@@ -241,6 +241,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
           <AgentAvatar
             name={activeAgent?.name || "CocoAgent"}
             agentId={activeAgent?.id || "main"}
+            icon={activeAgent?.icon}
             size="md"
           />
           <div className="min-w-0 flex-1">
@@ -273,7 +274,12 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                       : "text-foreground/80 hover:bg-accent/40"
                   }`}
                 >
-                  <AgentAvatar name={agent.name} agentId={agent.id} size="sm" />
+                  <AgentAvatar
+                    name={agent.name}
+                    agentId={agent.id}
+                    icon={agent.icon}
+                    size="sm"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium truncate flex items-center gap-1.5">
                       {agent.name}
@@ -461,6 +467,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                           <AgentAvatar
                             name={sessionAgent?.name || "CocoAgent"}
                             agentId={sessionAgent?.id || "main"}
+                            icon={sessionAgent?.icon}
                             size="md"
                             className="mt-0.5"
                           />

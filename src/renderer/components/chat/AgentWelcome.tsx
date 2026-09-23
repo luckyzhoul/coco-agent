@@ -47,7 +47,12 @@ export function AgentWelcome() {
       <div className="flex flex-col items-center text-center px-8 w-full max-w-md">
         {/* 大头像 */}
         <div className="w-28 h-28 rounded-full bg-card border border-border/60 flex items-center justify-center mb-5 shadow-sm">
-          <AgentAvatar name={activeAgent.name} agentId={activeAgent.id} size="xl" />
+          <AgentAvatar
+            name={activeAgent.name}
+            agentId={activeAgent.id}
+            icon={activeAgent.icon}
+            size="xl"
+          />
         </div>
 
         {/* 欢迎语 */}
@@ -83,7 +88,12 @@ export function AgentWelcome() {
                         : 'border-border/60 bg-card/50 text-foreground/70 hover:bg-accent/40 hover:text-foreground'
                     }`}
                   >
-                    <AgentAvatar name={agent.name} agentId={agent.id} size="sm" />
+                    <AgentAvatar
+                      name={agent.name}
+                      agentId={agent.id}
+                      icon={agent.icon}
+                      size="sm"
+                    />
                     <span className="truncate max-w-[100px]">{agent.name}</span>
                   </button>
                 );
