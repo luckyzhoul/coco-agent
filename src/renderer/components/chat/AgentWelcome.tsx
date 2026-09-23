@@ -55,12 +55,6 @@ export function AgentWelcome() {
           要做什么，交给 {activeAgent.name} 吧
         </h2>
 
-        {activeAgent.description && (
-          <p className="text-sm text-muted-foreground mb-5 max-w-xs">
-            {activeAgent.description}
-          </p>
-        )}
-
         {/* Agent 胶囊选择器 */}
         {agents.length > 1 && (
           <div

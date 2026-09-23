@@ -2,10 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useIpcRenderer } from '../../hooks/useIpcRenderer';
 import { useChatStore } from '../../stores/useChatStore';
 import { useSessionStore } from '../../stores/useSessionStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
+import type { ModelProvider } from '@shared/types';
+
+const providerLabels: Record<ModelProvider, string> = {
+  'openai-compatible': 'OpenAI 兼容',
+  'anthropic': 'Anthropic',
+  'ollama': 'Ollama（本地）',
+  'ark': 'Ark（豆包）'
+};
 
 export function ChatInput() {
   const [input, setInput] = useState('');
+  const [showModelPicker, setShowModelPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const modelPickerRef = useRef<HTMLDivElement>(null);
   const ipc = useIpcRenderer();
 
   const activeSessionId = useChatStore((s) => s.activeSessionId);
@@ -17,6 +28,35 @@ export function ChatInput() {
   const currentWorkspace = useSessionStore((s) => s.currentWorkspace);
   const setCurrentWorkspace = useSessionStore((s) => s.setCurrentWorkspace);
   const setSessions = useSessionStore((s) => s.setSessions);
+
+  const models = useSettingsStore((s) => s.models);
+  const activeModelId = useSettingsStore((s) => s.activeModelId);
+  const setActiveModel = useSettingsStore((s) => s.setActiveModel);
+
+  const activeModel = models.find((m) => m.id === activeModelId);
+
+  useEffect(() => {
+    if (!showModelPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        modelPickerRef.current &&
+        !modelPickerRef.current.contains(e.target as Node)
+      ) {
+        setShowModelPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showModelPicker]);
+
+  const handleSelectModel = async (id: string) => {
+    if (id === activeModelId) {
+      setShowModelPicker(false);
+      return;
+    }
+    await setActiveModel(id);
+    setShowModelPicker(false);
+  };
 
   const isBusy = status.state !== 'idle' && status.state !== 'error';
   const canSend = input.trim().length > 0 && !isBusy;
@@ -114,16 +154,65 @@ export function ChatInput() {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                title="选择模型"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" strokeLinecap="round" />
-                </svg>
-                <span>请选择模型</span>
-              </button>
+              <div className="relative" ref={modelPickerRef}>
+                <button
+                  onClick={() => setShowModelPicker(!showModelPicker)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors max-w-[180px]"
+                  title={activeModel ? `当前模型：${activeModel.name}` : '选择模型'}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="shrink-0">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" strokeLinecap="round" />
+                  </svg>
+                  <span className="truncate">
+                    {activeModel ? activeModel.name : '请选择模型'}
+                  </span>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="shrink-0 transition-transform"
+                    style={{ transform: showModelPicker ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                  >
+                    <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {showModelPicker && (
+                  <div className="absolute bottom-full left-0 mb-1 z-50 min-w-[200px] max-h-60 overflow-y-auto bg-card border border-border/60 rounded-xl shadow-lifted py-1">
+                    {models.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                        暂无模型，请在设置中添加
+                      </div>
+                    ) : (
+                      models.map((model) => (
+                        <button
+                          key={model.id}
+                          onClick={() => handleSelectModel(model.id)}
+                          className={`w-full flex flex-col items-start gap-0.5 px-3 py-2 text-left text-xs transition-colors ${
+                            model.id === activeModelId
+                              ? 'bg-accent/60 text-foreground'
+                              : 'text-foreground/80 hover:bg-accent/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 w-full">
+                            <span className="font-medium truncate flex-1">{model.name}</span>
+                            {model.id === activeModelId && (
+                              <span className="text-[10px] text-primary shrink-0">当前</span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground truncate w-full">
+                            {providerLabels[model.provider]} · {model.model}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
               {isBusy ? (
                 <button
                   onClick={handleAbort}
