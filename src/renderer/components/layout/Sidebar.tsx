@@ -1,5 +1,5 @@
 import type { SessionInfo } from "@shared/types";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useIpcRenderer } from "../../hooks/useIpcRenderer";
 import { useAgentStore } from "../../stores/useAgentStore";
 import { useChatStore } from "../../stores/useChatStore";
@@ -10,12 +10,10 @@ import { AgentAvatar } from "../chat/AgentAvatar";
 import {
   ActivityIcon,
   ArchiveIcon,
-  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ClockIcon,
   CloseIcon,
-  PlugIcon,
   PlusIcon,
   SearchIcon,
   SettingsIcon,
@@ -90,19 +88,13 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   const activeSessionId = useChatStore((s) => s.activeSessionId);
   const setActiveSession = useChatStore((s) => s.setActiveSession);
   const setMessages = useChatStore((s) => s.setMessages);
-  const mcpServers = useSettingsStore((s) => s.mcpServers);
   const loadMcpServers = useSettingsStore((s) => s.loadMcpServers);
   const agents = useAgentStore((s) => s.agents);
-  const activeAgentId = useAgentStore((s) => s.activeAgentId);
   const loadAgents = useAgentStore((s) => s.loadAgents);
-  const setActiveAgent = useAgentStore((s) => s.setActiveAgent);
   const toggleSkillsModal = useUiStore((s) => s.toggleSkillsModal);
-
-  const activeAgent = agents.find((a) => a.id === activeAgentId) ?? null;
+  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
 
   const [isCreating, setIsCreating] = useState(false);
-  const [showAgentPicker, setShowAgentPicker] = useState(false);
-  const agentPickerRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<
     {
@@ -182,30 +174,6 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     loadMcpServers,
   ]);
 
-  // 点击外部关闭 Agent 选择器
-  useEffect(() => {
-    if (!showAgentPicker) return;
-    const handler = (e: MouseEvent) => {
-      if (
-        agentPickerRef.current &&
-        !agentPickerRef.current.contains(e.target as Node)
-      ) {
-        setShowAgentPicker(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showAgentPicker]);
-
-  const handleSelectAgent = async (id: string) => {
-    if (id === activeAgentId) {
-      setShowAgentPicker(false);
-      return;
-    }
-    await setActiveAgent(id);
-    setShowAgentPicker(false);
-  };
-
   const handleNewSession = async () => {
     setIsCreating(true);
     try {
@@ -276,8 +244,6 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     const updated = await ipc.agent.setArchived(session.id, archived);
     setSessions(updated);
   };
-
-  const runningMcpCount = mcpServers.filter((s) => s.enabled).length;
 
   const renderSessionItem = (session: SessionInfo, isArchived = false) => {
     const sessionAgent = agents.find((a) => a.id === session.agentId);
@@ -350,88 +316,6 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
 
   return (
     <div className="flex h-full w-full flex-col border-r border-border/60 bg-card/40 backdrop-blur-sm">
-      {/* Agent 切换器 */}
-      <div className="px-3 pt-3 pb-2 relative" ref={agentPickerRef}>
-        <button
-          onClick={() => setShowAgentPicker(!showAgentPicker)}
-          className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 hover:bg-accent/50 transition-colors text-left"
-        >
-          <AgentAvatar
-            name={activeAgent?.name || "CocoAgent"}
-            agentId={activeAgent?.id || "main"}
-            icon={activeAgent?.icon}
-            size="md"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium text-foreground truncate">
-              {activeAgent?.name || "CocoAgent"}
-            </div>
-            <div className="text-[11px] text-muted-foreground truncate">
-              {activeAgent?.description || "点击切换助手"}
-            </div>
-          </div>
-          <ChevronDownIcon
-            className="text-muted-foreground shrink-0 transition-transform"
-            style={{
-              transform: showAgentPicker ? "rotate(180deg)" : "rotate(0deg)",
-            }}
-          />
-        </button>
-
-        {/* 下拉面板 */}
-        {showAgentPicker && (
-          <div className="absolute top-full left-3 right-3 mt-1 z-50 bg-card border border-border/60 rounded-xl shadow-lifted overflow-hidden">
-            <div className="max-h-60 overflow-y-auto py-1">
-              {agents.map((agent) => (
-                <button
-                  key={agent.id}
-                  onClick={() => handleSelectAgent(agent.id)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
-                    agent.id === activeAgentId
-                      ? "bg-accent/60 text-foreground"
-                      : "text-foreground/80 hover:bg-accent/40"
-                  }`}
-                >
-                  <AgentAvatar
-                    name={agent.name}
-                    agentId={agent.id}
-                    icon={agent.icon}
-                    size="sm"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium truncate flex items-center gap-1.5">
-                      {agent.name}
-                      {agent.id === activeAgentId && (
-                        <span className="text-[10px] text-primary font-normal">
-                          当前
-                        </span>
-                      )}
-                    </div>
-                    {agent.description && (
-                      <div className="text-[11px] text-muted-foreground truncate">
-                        {agent.description}
-                      </div>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-            <div className="border-t border-border/40">
-              <button
-                onClick={() => {
-                  setShowAgentPicker(false);
-                  onOpenSettings();
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-colors"
-              >
-                <SettingsIcon />
-                <span>管理助手</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* 对话标题栏 */}
       <div className="flex items-center justify-between px-4 pt-1 pb-2">
         <span className="text-sm font-medium text-foreground/80">对话</span>
@@ -452,6 +336,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
             <SettingsIcon />
           </button>
           <button
+            onClick={toggleSidebar}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             title="收起侧栏"
           >
