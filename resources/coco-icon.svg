@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Coco">
+  <!-- Coco 航空教学智能体图标：不对称粗线字母 C + 开口处目标点 -->
+  <g fill="none" stroke="#1B4B7A" stroke-width="42" stroke-linecap="round">
+    <!-- 字母 C：从右下圆头端点，绕左侧大弧，收束到右上圆头端点 -->
+    <path d="M 371 337 A 128 128 0 1 1 339 159"/>
+  </g>
+  <!-- 开口处目标点（飞行轨迹环绕的目标 / 卫星） -->
+  <circle cx="370" cy="248" r="15" fill="#1B4B7A"/>
+</svg>
