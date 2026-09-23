@@ -11,10 +11,12 @@ export default function App() {
   const theme = useSettingsStore((s) => s.settings?.theme);
   const fontSize = useSettingsStore((s) => s.settings?.fontSize);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
+  const loadModels = useSettingsStore((s) => s.loadModels);
 
   useEffect(() => {
     loadSettings();
-  }, [loadSettings]);
+    loadModels();
+  }, [loadSettings, loadModels]);
 
   useEffect(() => {
     if (fontSize) document.documentElement.style.fontSize = `${fontSize}px`;

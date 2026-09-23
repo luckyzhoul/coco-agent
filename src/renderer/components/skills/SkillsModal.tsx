@@ -18,33 +18,18 @@ import {
   DownloadIcon
 } from '../layout/icons';
 import type { SkillInfo, AgentInfo } from '@shared/types';
+import { AgentAvatar as SharedAgentAvatar } from '../chat/AgentAvatar';
 
 type TabType = 'all' | string; // 'all' 或 agentId
 
-const AVATAR_COLORS = [
-  '#5B7FA6', '#8B6F9E', '#C27D6A', '#6B9E8F',
-  '#D4A373', '#7D8CC4', '#A67C52', '#5F9EA0'
-];
-
-function hashColor(str: string): string {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = (h * 31 + str.charCodeAt(i)) >>> 0;
-  }
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
 function AgentAvatar({ agent, size = 'md' }: { agent: AgentInfo; size?: 'sm' | 'md' | 'lg' }) {
-  const sizeClass = size === 'sm' ? 'w-8 h-8 text-xs' : size === 'lg' ? 'w-12 h-12 text-lg' : 'w-10 h-10 text-sm';
-  const color = hashColor(agent.id);
-  const initial = agent.name.charAt(0).toUpperCase();
   return (
-    <div
-      className={`${sizeClass} rounded-full flex items-center justify-center text-white font-medium shrink-0`}
-      style={{ backgroundColor: color }}
-    >
-      {initial}
-    </div>
+    <SharedAgentAvatar
+      name={agent.name}
+      agentId={agent.id}
+      icon={agent.icon}
+      size={size === 'lg' ? 'lg' : 'md'}
+    />
   );
 }
 

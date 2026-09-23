@@ -21,6 +21,7 @@ import { mcpManager } from '../mcp/McpManager';
 import { buildMcpTools } from '../mcp/McpToolBridge';
 import { memoryService } from '../memory/MemoryService';
 import { approvalManager } from '../approval/ApprovalManager';
+import { settingsManager } from '../settings/SettingsManager';
 import { PI_RUNTIME_DIR } from '../paths';
 import { buildBrowserTools } from '../browser/browserTools';
 import { buildComputerTools } from '../computer/computerTools';
@@ -36,7 +37,8 @@ import {
   AGENT_EVENT_TOOL_CALL_DELTA,
   AGENT_EVENT_MESSAGE_END,
   AGENT_EVENT_FILE_DELIVERY,
-  AGENT_EVENT_TURN_END
+  AGENT_EVENT_TURN_END,
+  AGENT_EVENT_COMPACTION
 } from '../../shared/ipc-channels';
 import type {
   Message,
@@ -48,7 +50,9 @@ import type {
   ThinkingPart,
   ToolCallPart,
   FileDeliveryPart,
-  TurnSummary
+  TurnSummary,
+  Attachment,
+  SlashCommandInfo
 } from '../../shared/types';
 import * as fs from 'node:fs';
 import {
@@ -63,6 +67,7 @@ import {
   searchSessions,
   setSessionArchived,
   updateSessionWorkspace,
+  findMostRecentEmptySession,
   type SessionSearchResult
 } from './session-store';
 
@@ -102,7 +107,15 @@ export class AgentRuntime {
   }
 
   private setStatus(status: Partial<AgentStatus>): void {
-    this.status = { ...this.status, ...status };
+    const next = { ...this.status, ...status };
+    if (
+      next.state === this.status.state &&
+      next.currentTool === this.status.currentTool &&
+      next.sessionId === this.status.sessionId
+    ) {
+      return;
+    }
+    this.status = next;
     this.emit(AGENT_EVENT_STATUS, this.status);
   }
 
@@ -437,6 +450,13 @@ export class AgentRuntime {
   }
 
   async newSession(workspacePath: string): Promise<string> {
+    const activeAgentId = agentManager.getActiveId();
+    const emptySession = findMostRecentEmptySession(activeAgentId, workspacePath);
+    if (emptySession) {
+      await this.switchSession(emptySession.id);
+      return emptySession.id;
+    }
+
     // Clean up previous session
     if (this.unsubscriber) {
       this.unsubscriber();
@@ -455,8 +475,10 @@ export class AgentRuntime {
     // Memories are agent-scoped; make sure the active agent's are loaded.
     memoryService.load(agentManager.getActiveId());
 
+    const appSettings = settingsManager.get();
     const piSettingsManager = SettingsManager.inMemory({
-      compaction: { enabled: false }
+      compaction: { enabled: true, reserveTokens: 2000, keepRecentTokens: 3000 },
+      defaultThinkingLevel: (appSettings.defaultThinkingLevel || 'medium') as any
     });
     const resourceLoader = await this.buildResourceLoader(workspacePath, piSettingsManager);
 
@@ -474,7 +496,8 @@ export class AgentRuntime {
       settingsManager: piSettingsManager,
       resourceLoader,
       modelRuntime: runtime?.modelRuntime,
-      model: runtime?.model
+      model: runtime?.model,
+      thinkingLevel: (appSettings.defaultThinkingLevel || 'medium') as any
     });
 
     this.activeSession = session;
@@ -545,8 +568,10 @@ export class AgentRuntime {
     }
 
     // Apply active model configuration
+    const appSettings = settingsManager.get();
     const piSettingsManager = SettingsManager.inMemory({
-      compaction: { enabled: false }
+      compaction: { enabled: true, reserveTokens: 2000, keepRecentTokens: 3000 },
+      defaultThinkingLevel: (appSettings.defaultThinkingLevel || 'medium') as any
     });
 
     // A session belongs to an agent; switching to it should switch the persona too.
@@ -587,7 +612,8 @@ export class AgentRuntime {
       settingsManager: piSettingsManager,
       resourceLoader,
       modelRuntime: runtime?.modelRuntime,
-      model: runtime?.model
+      model: runtime?.model,
+      thinkingLevel: (appSettings.defaultThinkingLevel || 'medium') as any
     });
 
     this.activeSession = session;
@@ -648,10 +674,42 @@ export class AgentRuntime {
     return this.status;
   }
 
-  async sendMessage(content: string): Promise<void> {
+  async setThinkingLevel(level: string): Promise<string> {
+    settingsManager.set({ defaultThinkingLevel: level });
+    if (this.activeSession && typeof (this.activeSession as any).setThinkingLevel === 'function') {
+      try {
+        (this.activeSession as any).setThinkingLevel(level);
+      } catch {
+        // 模型不支持时忽略
+      }
+    }
+    return level;
+  }
+
+  async compactContext(): Promise<void> {
+    if (!this.activeSession) {
+      throw new Error('当前没有活动会话');
+    }
+    if (typeof (this.activeSession as any).compact === 'function') {
+      await (this.activeSession as any).compact();
+    }
+  }
+
+  listCommands(): SlashCommandInfo[] {
+    return [
+      { name: '/compact', description: '压缩当前对话上下文', isBuiltin: true, icon: '↵↵' },
+      { name: '/thinking', description: '切换思考深度（off/medium/high）', isBuiltin: true, icon: '💡' },
+      { name: '/model', description: '快速切换模型', isBuiltin: true, icon: '🤖' },
+      { name: '/clear', description: '清空当前会话消息', isBuiltin: true, icon: '🗑' }
+    ];
+  }
+
+  async sendMessage(content: string, attachments: Attachment[] = []): Promise<void> {
     if (!this.activeSession || !this.activeSessionId) {
       throw new Error('当前没有活动会话');
     }
+
+    const fullContent = this.buildMessageWithAttachments(content, attachments);
 
     // Reset assistant state for new turn
     this.resetTurnState();
@@ -661,7 +719,7 @@ export class AgentRuntime {
     const userMsg: Message = {
       id: `msg_${Date.now()}_u`,
       role: 'user',
-      content,
+      content: fullContent,
       timestamp: Date.now()
     };
     appendMessage(this.activeSessionId, userMsg);
@@ -670,12 +728,55 @@ export class AgentRuntime {
 
     try {
       this.setStatus({ state: 'thinking' });
-      await this.activeSession.prompt(content);
+      await this.activeSession.prompt(fullContent);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       this.emit(AGENT_EVENT_ERROR, errorMsg);
       this.setStatus({ state: 'error' });
     }
+  }
+
+  private buildMessageWithAttachments(content: string, attachments: Attachment[]): string {
+    if (attachments.length === 0) return content;
+
+    const parts: string[] = [];
+    for (const att of attachments) {
+      try {
+        const stat = fs.statSync(att.path);
+        if (stat.isDirectory()) {
+          parts.push(`\n--- 附件文件夹：${att.name} ---\n（文件夹内容未读取，路径：${att.path}）\n`);
+          continue;
+        }
+        if (stat.size > 1024 * 1024) {
+          parts.push(`\n--- 附件：${att.name} ---\n（文件过大，${(stat.size / 1024).toFixed(0)} KB，未读取内容）\n`);
+          continue;
+        }
+        const isText = this.isTextFile(att.name);
+        if (isText) {
+          const fileContent = fs.readFileSync(att.path, 'utf-8');
+          parts.push(`\n--- 附件：${att.name} ---\n${fileContent}\n`);
+        } else {
+          parts.push(`\n--- 附件：${att.name} ---\n（二进制文件，${(stat.size / 1024).toFixed(1)} KB，内容未读取）\n`);
+        }
+      } catch {
+        parts.push(`\n--- 附件：${att.name} ---\n（无法读取文件）\n`);
+      }
+    }
+
+    return content + parts.join('');
+  }
+
+  private isTextFile(filename: string): boolean {
+    const textExts = [
+      '.txt', '.md', '.markdown', '.csv', '.json', '.xml', '.yaml', '.yml',
+      '.py', '.js', '.ts', '.tsx', '.jsx', '.html', '.css', '.scss', '.less',
+      '.java', '.c', '.cpp', '.h', '.hpp', '.go', '.rs', '.rb', '.php',
+      '.sh', '.bash', '.zsh', '.fish', '.sql', '.log', '.ini', '.conf',
+      '.env', '.toml', '.dockerfile', '.makefile', '.vue', '.svelte',
+      '.swift', '.kt', '.dart', '.lua', '.r', '.m', '.mm', '.plist'
+    ];
+    const lower = filename.toLowerCase();
+    return textExts.some((ext) => lower.endsWith(ext));
   }
 
   /**
@@ -730,7 +831,6 @@ export class AgentRuntime {
         // Best effort
       }
     }
-    this.setStatus({ state: 'idle', currentTool: undefined });
   }
 
   private handleSessionEvent(event: AgentSessionEvent): void {
@@ -860,7 +960,6 @@ export class AgentRuntime {
         }
 
         this.activeToolCalls.clear();
-        this.setStatus({ state: 'idle', currentTool: undefined });
         break;
       }
 
@@ -973,6 +1072,7 @@ export class AgentRuntime {
           });
         }
         if (!willRetry) {
+          this.setStatus({ state: 'idle', currentTool: undefined });
           this.resetTurnState();
         }
         break;
@@ -982,6 +1082,12 @@ export class AgentRuntime {
         if ('errorMessage' in event && event.errorMessage) {
           this.emit(AGENT_EVENT_ERROR, event.errorMessage);
           this.setStatus({ state: 'error' });
+        } else {
+          const removed = 'removedTokens' in event ? (event as any).removedTokens : undefined;
+          this.emit(AGENT_EVENT_COMPACTION, {
+            message: '对话上下文已压缩',
+            removedTokens: removed
+          });
         }
         break;
 

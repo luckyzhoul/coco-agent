@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useChatStore } from '../../stores/useChatStore';
 import { useAgentEvent, useIpcRenderer } from '../../hooks/useIpcRenderer';
 import { MessageList } from './MessageList';
@@ -26,13 +26,25 @@ export function ChatPanel() {
   const addFileDelivery = useChatStore((s) => s.addFileDelivery);
   const addSummaryPart = useChatStore((s) => s.addSummaryPart);
   const finishMessage = useChatStore((s) => s.finishMessage);
+  const addSystemMessage = useChatStore((s) => s.addSystemMessage);
+
+  const statusRef = useRef(status);
+  statusRef.current = status;
 
   useEffect(() => {
     if (activeSessionId) {
       ipc.agent.getSessionMessages(activeSessionId).then((msgs) => {
         setMessages(msgs);
       });
-      ipc.agent.getStatus().then((s) => setStatus(s));
+      const currentSessionId = activeSessionId;
+      ipc.agent.getStatus().then((s) => {
+        if (s.sessionId !== currentSessionId) return;
+        const cur = statusRef.current;
+        if (cur.sessionId === s.sessionId && cur.state !== 'idle' && cur.state !== 'error') {
+          return;
+        }
+        setStatus(s);
+      });
     }
   }, [activeSessionId, ipc, setMessages, setStatus]);
 
@@ -102,6 +114,16 @@ export function ChatPanel() {
     'agentTurnEnd',
     (data: { messageId: string; partIndex: number; summary: TurnSummary }) => {
       addSummaryPart(data.messageId, data.partIndex, data.summary);
+    }
+  );
+
+  useAgentEvent(
+    'agentCompaction',
+    (data: { message: string; removedTokens?: number }) => {
+      const text = data.removedTokens
+        ? `${data.message}（约减少 ${data.removedTokens} tokens）`
+        : data.message;
+      addSystemMessage(text);
     }
   );
 

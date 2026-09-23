@@ -182,6 +182,32 @@ export function loadSessionMessages(sessionId: string): Message[] {
   });
 }
 
+export function findMostRecentEmptySession(
+  agentId: string,
+  workspacePath: string
+): SessionInfo | null {
+  const row = getDb()
+    .prepare(
+      `SELECT * FROM sessions
+       WHERE message_count = 0 AND archived = 0
+         AND agent_id = ? AND workspace_path = ?
+       ORDER BY updated_at DESC LIMIT 1`
+    )
+    .get(agentId, workspacePath) as unknown as SessionRow | undefined;
+
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    workspacePath: row.workspace_path,
+    agentId: row.agent_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    messageCount: row.message_count,
+    archived: !!row.archived
+  };
+}
+
 export function generateSessionId(): string {
   return `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }

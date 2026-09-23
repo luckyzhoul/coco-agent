@@ -11,6 +11,9 @@ export const AGENT_GET_STATUS = 'agent:getStatus';
 export const AGENT_SEARCH_SESSIONS = 'agent:searchSessions';
 export const AGENT_ARCHIVE_SESSION = 'agent:archiveSession';
 export const AGENT_REBIND_WORKSPACE = 'agent:rebindWorkspace';
+export const AGENT_SET_THINKING_LEVEL = 'agent:setThinkingLevel';
+export const AGENT_COMPACT_CONTEXT = 'agent:compactContext';
+export const AGENT_LIST_COMMANDS = 'agent:listCommands';
 
 // Agent event channels (main -> renderer)
 export const AGENT_EVENT_MESSAGE = 'agent:event:message';
@@ -24,6 +27,7 @@ export const AGENT_EVENT_TOOL_CALL_DELTA = 'agent:event:toolCallDelta';
 export const AGENT_EVENT_MESSAGE_END = 'agent:event:messageEnd';
 export const AGENT_EVENT_FILE_DELIVERY = 'agent:event:fileDelivery';
 export const AGENT_EVENT_TURN_END = 'agent:event:turnEnd';
+export const AGENT_EVENT_COMPACTION = 'agent:event:compaction';
 
 // Workspace channels
 export const WORKSPACE_SELECT = 'workspace:select';
@@ -110,6 +114,8 @@ export const AGENTS_GET_ACTIVE = 'agents:getActive';
 export const AGENTS_SET_ACTIVE = 'agents:setActive';
 export const AGENTS_GET_PERSONA = 'agents:getPersona';
 export const AGENTS_SET_PERSONA = 'agents:setPersona';
+export const AGENTS_UPLOAD_ICON = 'agents:uploadIcon';
+export const AGENTS_GET_ICON = 'agents:getIcon';
 
 // Agent skill assignment channels
 export const AGENT_SKILLS_LIST = 'agentSkills:list';

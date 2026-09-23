@@ -76,6 +76,8 @@ export interface AgentInfo {
   id: string;
   name: string;
   description: string;
+  /** '' = 首字母头像；'builtin:<key>' = 内置图标；'custom' = agents/<id>/icon.png */
+  icon: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -205,6 +207,21 @@ export interface AppSettings {
 
   // Auto-update (generic feed URL; empty = use the bundled GitHub feed)
   updateFeedUrl: string;
+}
+
+export interface Attachment {
+  name: string;
+  path: string;
+  size: number;
+  type: string;
+}
+
+export interface SlashCommandInfo {
+  name: string;
+  description: string;
+  icon?: string;
+  /** If true, the command is handled by the main process (not sent to the model). */
+  isBuiltin?: boolean;
 }
 
 export interface ToolApprovalRequest {

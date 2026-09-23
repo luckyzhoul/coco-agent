@@ -47,7 +47,12 @@ export function AgentWelcome() {
       <div className="flex flex-col items-center text-center px-8 w-full max-w-md">
         {/* 大头像 */}
         <div className="w-28 h-28 rounded-full bg-card border border-border/60 flex items-center justify-center mb-5 shadow-sm">
-          <AgentAvatar name={activeAgent.name} agentId={activeAgent.id} size="xl" />
+          <AgentAvatar
+            name={activeAgent.name}
+            agentId={activeAgent.id}
+            icon={activeAgent.icon}
+            size="xl"
+          />
         </div>
 
         {/* 欢迎语 */}
@@ -55,20 +60,14 @@ export function AgentWelcome() {
           要做什么，交给 {activeAgent.name} 吧
         </h2>
 
-        {activeAgent.description && (
-          <p className="text-sm text-muted-foreground mb-5 max-w-xs">
-            {activeAgent.description}
-          </p>
-        )}
-
         {/* Agent 胶囊选择器 */}
         {agents.length > 1 && (
           <div
             ref={scrollRef}
-            className="w-full overflow-x-auto scrollbar-hide mb-5"
+            className="mb-5 flex w-full justify-center overflow-x-auto scrollbar-hide"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            <div className="flex gap-2 px-1 pb-1" style={{ width: 'max-content' }}>
+            <div className="flex w-max items-center justify-center gap-2 px-1 pb-1">
               {agents.map((agent) => {
                 const isActive = agent.id === activeAgentId;
                 return (
@@ -83,7 +82,12 @@ export function AgentWelcome() {
                         : 'border-border/60 bg-card/50 text-foreground/70 hover:bg-accent/40 hover:text-foreground'
                     }`}
                   >
-                    <AgentAvatar name={agent.name} agentId={agent.id} size="sm" />
+                    <AgentAvatar
+                      name={agent.name}
+                      agentId={agent.id}
+                      icon={agent.icon}
+                      size="sm"
+                    />
                     <span className="truncate max-w-[100px]">{agent.name}</span>
                   </button>
                 );

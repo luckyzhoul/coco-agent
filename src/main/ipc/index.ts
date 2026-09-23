@@ -4,6 +4,8 @@ import { dialog, shell } from 'electron';
 import { workspaceManager } from '../workspace/WorkspaceManager';
 import { fileService } from '../workspace/FileService';
 import { agentRuntime } from '../agent/AgentRuntime';
+import { readIconDataUrl, saveUploadedIcon } from '../agents/icon';
+import { CUSTOM_ICON } from '../../shared/agentIcons';
 import { settingsManager } from '../settings/SettingsManager';
 import { modelManager } from '../models/ModelManager';
 import { mcpManager } from '../mcp/McpManager';
@@ -36,6 +38,9 @@ import {
   AGENT_SEARCH_SESSIONS,
   AGENT_ARCHIVE_SESSION,
   AGENT_REBIND_WORKSPACE,
+  AGENT_SET_THINKING_LEVEL,
+  AGENT_COMPACT_CONTEXT,
+  AGENT_LIST_COMMANDS,
   SETTINGS_GET,
   SETTINGS_SET,
   SETTINGS_RESET,
@@ -84,6 +89,8 @@ import {
   AGENTS_SET_ACTIVE,
   AGENTS_GET_PERSONA,
   AGENTS_SET_PERSONA,
+  AGENTS_UPLOAD_ICON,
+  AGENTS_GET_ICON,
   AGENT_SKILLS_LIST,
   AGENT_SKILLS_ENABLE,
   AGENT_SKILLS_DISABLE,
@@ -97,7 +104,7 @@ import {
   WINDOW_CLOSE,
   WINDOW_IS_MAXIMIZED
 } from '../../shared/ipc-channels';
-import type { AppSettings, ModelConfig, MCPConfig, ToolApprovalDecision } from '../../shared/types';
+import type { AppSettings, Attachment, ModelConfig, MCPConfig, SlashCommandInfo, ToolApprovalDecision } from '../../shared/types';
 import { paths } from '../paths';
 import { agentManager } from '../agents/AgentManager';
 import { readPersona, writePersona } from '../agents/persona';
@@ -194,9 +201,9 @@ export function registerIpcHandlers(
     return agentRuntime.rebindWorkspace(workspacePath);
   });
 
-  ipcMain.handle(AGENT_SEND_MESSAGE, async (_e, content: string) => {
+  ipcMain.handle(AGENT_SEND_MESSAGE, async (_e, payload: { content: string; attachments?: Attachment[] }) => {
     agentRuntime.setMainWindow(getMainWindow());
-    await agentRuntime.sendMessage(content);
+    await agentRuntime.sendMessage(payload.content, payload.attachments ?? []);
   });
 
   ipcMain.handle(AGENT_ABORT, async () => {
@@ -206,6 +213,20 @@ export function registerIpcHandlers(
   ipcMain.handle(AGENT_REGENERATE, async () => {
     agentRuntime.setMainWindow(getMainWindow());
     await agentRuntime.regenerateLast();
+  });
+
+  ipcMain.handle(AGENT_SET_THINKING_LEVEL, async (_e, level: string) => {
+    agentRuntime.setMainWindow(getMainWindow());
+    return agentRuntime.setThinkingLevel(level);
+  });
+
+  ipcMain.handle(AGENT_COMPACT_CONTEXT, async () => {
+    agentRuntime.setMainWindow(getMainWindow());
+    await agentRuntime.compactContext();
+  });
+
+  ipcMain.handle(AGENT_LIST_COMMANDS, () => {
+    return agentRuntime.listCommands() as SlashCommandInfo[];
   });
 
   // Settings handlers
@@ -400,13 +421,19 @@ export function registerIpcHandlers(
     return agentManager.list();
   });
 
-  ipcMain.handle(AGENTS_CREATE, (_e, input: { name: string; description?: string; persona?: string }) => {
-    return agentManager.create(input);
-  });
+  ipcMain.handle(
+    AGENTS_CREATE,
+    (_e, input: { name: string; description?: string; persona?: string; icon?: string }) => {
+      return agentManager.create(input);
+    },
+  );
 
-  ipcMain.handle(AGENTS_UPDATE, (_e, id: string, updates: { name?: string; description?: string }) => {
-    return agentManager.update(id, updates);
-  });
+  ipcMain.handle(
+    AGENTS_UPDATE,
+    (_e, id: string, updates: { name?: string; description?: string; icon?: string }) => {
+      return agentManager.update(id, updates);
+    },
+  );
 
   ipcMain.handle(AGENTS_DELETE, (_e, id: string) => {
     agentManager.delete(id);
@@ -433,6 +460,23 @@ export function registerIpcHandlers(
     const agent = agentManager.get(id);
     if (!agent) throw new Error(`Agent not found: ${id}`);
     writePersona(id, { name: agent.name, description: agent.description, body });
+  });
+
+  ipcMain.handle(AGENTS_UPLOAD_ICON, async (_e, id: string) => {
+    const win = getMainWindow();
+    const result = await dialog.showOpenDialog(win!, {
+      title: '选择头像图片',
+      properties: ['openFile'],
+      filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg'] }],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+
+    saveUploadedIcon(id, result.filePaths[0]);
+    return agentManager.update(id, { icon: CUSTOM_ICON });
+  });
+
+  ipcMain.handle(AGENTS_GET_ICON, (_e, id: string) => {
+    return readIconDataUrl(id);
   });
 
   // Agent skill assignment handlers

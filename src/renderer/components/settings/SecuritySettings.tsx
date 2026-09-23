@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { SecurityLevel } from '@shared/types';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { CheckIcon } from '../layout/icons';
+import { ArchiveManager } from './ArchiveManager';
 
 const LEVEL_INFO: Record<SecurityLevel, { label: string; detail: string }> = {
   readonly: {
@@ -111,6 +112,10 @@ export function SecuritySettings() {
           已保存 — 将应用于新会话。
         </div>
       )}
+
+      <div className="border-t border-border/50 pt-6">
+        <ArchiveManager />
+      </div>
     </div>
   );
 }

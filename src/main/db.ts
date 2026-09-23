@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS agents (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
+  icon        TEXT NOT NULL DEFAULT '',
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER NOT NULL
 );
@@ -96,6 +97,11 @@ export function initDb(): DatabaseSync {
   }
   try {
     db.exec('ALTER TABLE messages ADD COLUMN turn_summary TEXT');
+  } catch {
+    // Column already present.
+  }
+  try {
+    db.exec("ALTER TABLE agents ADD COLUMN icon TEXT NOT NULL DEFAULT ''");
   } catch {
     // Column already present.
   }

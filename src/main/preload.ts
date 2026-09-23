@@ -15,7 +15,9 @@ import type {
   FileReadResult,
   FileWriteResult,
   ToolCall,
-  TurnSummary
+  TurnSummary,
+  Attachment,
+  SlashCommandInfo
 } from '../shared/types';
 import {
   AGENT_SEND_MESSAGE,
@@ -30,6 +32,9 @@ import {
   AGENT_SEARCH_SESSIONS,
   AGENT_ARCHIVE_SESSION,
   AGENT_REBIND_WORKSPACE,
+  AGENT_SET_THINKING_LEVEL,
+  AGENT_COMPACT_CONTEXT,
+  AGENT_LIST_COMMANDS,
   AGENT_EVENT_MESSAGE,
   AGENT_EVENT_TOOL_CALL,
   AGENT_EVENT_TOOL_RESULT,
@@ -41,6 +46,7 @@ import {
   AGENT_EVENT_MESSAGE_END,
   AGENT_EVENT_FILE_DELIVERY,
   AGENT_EVENT_TURN_END,
+  AGENT_EVENT_COMPACTION,
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
   WORKSPACE_LIST_RECENT,
@@ -101,6 +107,8 @@ import {
   AGENTS_SET_ACTIVE,
   AGENTS_GET_PERSONA,
   AGENTS_SET_PERSONA,
+  AGENTS_UPLOAD_ICON,
+  AGENTS_GET_ICON,
   AGENT_SKILLS_LIST,
   AGENT_SKILLS_ENABLE,
   AGENT_SKILLS_DISABLE,
@@ -123,8 +131,8 @@ import type {
 
 const electronAPI = {
   agent: {
-    sendMessage: (content: string) =>
-      ipcRenderer.invoke(AGENT_SEND_MESSAGE, content),
+    sendMessage: (content: string, attachments?: Attachment[]) =>
+      ipcRenderer.invoke(AGENT_SEND_MESSAGE, { content, attachments }),
     abort: () => ipcRenderer.invoke(AGENT_ABORT),
     regenerate: () => ipcRenderer.invoke(AGENT_REGENERATE),
     newSession: (workspacePath: string) =>
@@ -146,7 +154,13 @@ const electronAPI = {
     setArchived: (sessionId: string, archived: boolean) =>
       ipcRenderer.invoke(AGENT_ARCHIVE_SESSION, sessionId, archived) as Promise<SessionInfo[]>,
     rebindWorkspace: (workspacePath: string) =>
-      ipcRenderer.invoke(AGENT_REBIND_WORKSPACE, workspacePath) as Promise<SessionInfo | null>
+      ipcRenderer.invoke(AGENT_REBIND_WORKSPACE, workspacePath) as Promise<SessionInfo | null>,
+    setThinkingLevel: (level: string) =>
+      ipcRenderer.invoke(AGENT_SET_THINKING_LEVEL, level) as Promise<string>,
+    compactContext: () =>
+      ipcRenderer.invoke(AGENT_COMPACT_CONTEXT) as Promise<void>,
+    listCommands: () =>
+      ipcRenderer.invoke(AGENT_LIST_COMMANDS) as Promise<SlashCommandInfo[]>
   },
   workspace: {
     select: () =>
@@ -304,6 +318,12 @@ const electronAPI = {
       ipcRenderer.on(AGENT_EVENT_TURN_END, listener);
       return () => ipcRenderer.removeListener(AGENT_EVENT_TURN_END, listener);
     },
+    agentCompaction: (callback: (data: { message: string; removedTokens?: number }) => void) => {
+      const listener = (_: unknown, data: unknown) =>
+        callback(data as { message: string; removedTokens?: number });
+      ipcRenderer.on(AGENT_EVENT_COMPACTION, listener);
+      return () => ipcRenderer.removeListener(AGENT_EVENT_COMPACTION, listener);
+    },
     mcpStatusChanged: (callback: (data: { id: string; running: boolean; error?: string }) => void) => {
       const listener = (_: unknown, data: unknown) =>
         callback(data as { id: string; running: boolean; error?: string });
@@ -351,9 +371,9 @@ const electronAPI = {
   },
   agents: {
     list: () => ipcRenderer.invoke(AGENTS_LIST) as Promise<AgentInfo[]>,
-    create: (input: { name: string; description?: string; persona?: string }) =>
+    create: (input: { name: string; description?: string; persona?: string; icon?: string }) =>
       ipcRenderer.invoke(AGENTS_CREATE, input) as Promise<AgentInfo>,
-    update: (id: string, updates: { name?: string; description?: string }) =>
+    update: (id: string, updates: { name?: string; description?: string; icon?: string }) =>
       ipcRenderer.invoke(AGENTS_UPDATE, id, updates) as Promise<AgentInfo>,
     delete: (id: string) =>
       ipcRenderer.invoke(AGENTS_DELETE, id) as Promise<AgentInfo[]>,
@@ -363,7 +383,10 @@ const electronAPI = {
     getPersona: (id: string) =>
       ipcRenderer.invoke(AGENTS_GET_PERSONA, id) as Promise<string>,
     setPersona: (id: string, body: string) =>
-      ipcRenderer.invoke(AGENTS_SET_PERSONA, id, body) as Promise<void>
+      ipcRenderer.invoke(AGENTS_SET_PERSONA, id, body) as Promise<void>,
+    uploadIcon: (id: string) =>
+      ipcRenderer.invoke(AGENTS_UPLOAD_ICON, id) as Promise<AgentInfo | null>,
+    getIcon: (id: string) => ipcRenderer.invoke(AGENTS_GET_ICON, id) as Promise<string | null>
   },
   agentSkills: {
     list: (agentId: string) =>
