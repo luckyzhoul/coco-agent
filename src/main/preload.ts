@@ -101,6 +101,8 @@ import {
   AGENTS_SET_ACTIVE,
   AGENTS_GET_PERSONA,
   AGENTS_SET_PERSONA,
+  AGENTS_UPLOAD_ICON,
+  AGENTS_GET_ICON,
   AGENT_SKILLS_LIST,
   AGENT_SKILLS_ENABLE,
   AGENT_SKILLS_DISABLE,
@@ -351,9 +353,9 @@ const electronAPI = {
   },
   agents: {
     list: () => ipcRenderer.invoke(AGENTS_LIST) as Promise<AgentInfo[]>,
-    create: (input: { name: string; description?: string; persona?: string }) =>
+    create: (input: { name: string; description?: string; persona?: string; icon?: string }) =>
       ipcRenderer.invoke(AGENTS_CREATE, input) as Promise<AgentInfo>,
-    update: (id: string, updates: { name?: string; description?: string }) =>
+    update: (id: string, updates: { name?: string; description?: string; icon?: string }) =>
       ipcRenderer.invoke(AGENTS_UPDATE, id, updates) as Promise<AgentInfo>,
     delete: (id: string) =>
       ipcRenderer.invoke(AGENTS_DELETE, id) as Promise<AgentInfo[]>,
@@ -363,7 +365,10 @@ const electronAPI = {
     getPersona: (id: string) =>
       ipcRenderer.invoke(AGENTS_GET_PERSONA, id) as Promise<string>,
     setPersona: (id: string, body: string) =>
-      ipcRenderer.invoke(AGENTS_SET_PERSONA, id, body) as Promise<void>
+      ipcRenderer.invoke(AGENTS_SET_PERSONA, id, body) as Promise<void>,
+    uploadIcon: (id: string) =>
+      ipcRenderer.invoke(AGENTS_UPLOAD_ICON, id) as Promise<AgentInfo | null>,
+    getIcon: (id: string) => ipcRenderer.invoke(AGENTS_GET_ICON, id) as Promise<string | null>
   },
   agentSkills: {
     list: (agentId: string) =>

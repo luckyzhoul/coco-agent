@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { AgentInfo } from '@shared/types';
+import { useAgentIconStore } from './useAgentIconStore';
 
 interface AgentState {
   agents: AgentInfo[];
@@ -7,12 +8,21 @@ interface AgentState {
   isLoading: boolean;
 
   loadAgents: () => Promise<void>;
-  createAgent: (input: { name: string; description?: string; persona?: string }) => Promise<AgentInfo>;
+  createAgent: (input: {
+    name: string;
+    description?: string;
+    persona?: string;
+    icon?: string;
+  }) => Promise<AgentInfo>;
   setActiveAgent: (id: string) => Promise<void>;
   deleteAgent: (id: string) => Promise<void>;
   getPersona: (id: string) => Promise<string>;
   setPersona: (id: string, body: string) => Promise<void>;
-  updateAgent: (id: string, updates: { name?: string; description?: string }) => Promise<void>;
+  updateAgent: (
+    id: string,
+    updates: { name?: string; description?: string; icon?: string },
+  ) => Promise<void>;
+  uploadIcon: (id: string) => Promise<AgentInfo | null>;
 }
 
 export const useAgentStore = create<AgentState>((set, get) => ({
@@ -60,6 +70,18 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
   updateAgent: async (id, updates) => {
     await window.electronAPI.agents.update(id, updates);
+    if (updates.icon !== undefined) {
+      useAgentIconStore.getState().invalidate(id);
+    }
     await get().loadAgents();
+  },
+
+  uploadIcon: async (id) => {
+    const updated = await window.electronAPI.agents.uploadIcon(id);
+    if (!updated) return null;
+    // The file changed on disk even when the icon value stayed 'custom'.
+    useAgentIconStore.getState().invalidate(id);
+    await get().loadAgents();
+    return updated;
   }
 }));

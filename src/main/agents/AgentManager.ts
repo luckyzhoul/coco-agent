@@ -1,13 +1,19 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { DEFAULT_TEMPLATE_ID, getAgentTemplate } from "../../shared/agentTemplates";
+import { CUSTOM_ICON } from "../../shared/agentIcons";
 import type { AgentInfo, SkillInfo } from "../../shared/types";
 import { getDb } from "../db";
 import { ensureDir } from "../paths";
 import { settingsManager } from "../settings/SettingsManager";
 import { skillManager } from "../skills/SkillManager";
+import { removeIconFile } from "./icon";
 import { agentDir, agentSkillsDir, readPersona, writePersona } from "./persona";
 
 export const DEFAULT_AGENT_ID = "main";
+
+const DEFAULT_AGENT_NAME = "Coco";
+const DEFAULT_DESCRIPTION = "Default assistant";
 
 export type { AgentInfo };
 
@@ -15,6 +21,7 @@ interface AgentRow {
   id: string;
   name: string;
   description: string;
+  icon: string;
   created_at: number;
   updated_at: number;
 }
@@ -24,6 +31,7 @@ function toInfo(row: AgentRow): AgentInfo {
     id: row.id,
     name: row.name,
     description: row.description,
+    icon: row.icon ?? "",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -41,6 +49,7 @@ function slugify(name: string): string {
 export class AgentManager {
   constructor() {
     this.ensureDefault();
+    this.ensureDefaultTemplate();
   }
 
   list(): AgentInfo[] {
@@ -61,6 +70,7 @@ export class AgentManager {
     name: string;
     description?: string;
     persona?: string;
+    icon?: string;
   }): AgentInfo {
     const db = getDb();
     const now = Date.now();
@@ -73,8 +83,8 @@ export class AgentManager {
     }
 
     db.prepare(
-      "INSERT INTO agents (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-    ).run(id, input.name, input.description ?? "", now, now);
+      "INSERT INTO agents (id, name, description, icon, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+    ).run(id, input.name, input.description ?? "", input.icon ?? "", now, now);
 
     ensureDir(agentDir(id));
     ensureDir(agentSkillsDir(id));
@@ -87,21 +97,28 @@ export class AgentManager {
 
   update(
     id: string,
-    updates: Partial<Pick<AgentInfo, "name" | "description">>,
+    updates: Partial<Pick<AgentInfo, "name" | "description" | "icon">>,
   ): AgentInfo {
     const existing = this.get(id);
     if (!existing) throw new Error(`Agent not found: ${id}`);
 
+    const icon = updates.icon ?? existing.icon;
     getDb()
       .prepare(
-        "UPDATE agents SET name = ?, description = ?, updated_at = ? WHERE id = ?",
+        "UPDATE agents SET name = ?, description = ?, icon = ?, updated_at = ? WHERE id = ?",
       )
       .run(
         updates.name ?? existing.name,
         updates.description ?? existing.description,
+        icon,
         Date.now(),
         id,
       );
+
+    // The uploaded file is only reachable through the 'custom' sentinel.
+    if (existing.icon === CUSTOM_ICON && icon !== CUSTOM_ICON) {
+      removeIconFile(id);
+    }
 
     // Keep the persona frontmatter name in sync when it exists.
     const persona = readPersona(id);
@@ -231,9 +248,37 @@ export class AgentManager {
         .prepare(
           "INSERT INTO agents (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         )
-        .run(DEFAULT_AGENT_ID, "Coco", "Default assistant", now, now);
+        .run(DEFAULT_AGENT_ID, DEFAULT_AGENT_NAME, DEFAULT_DESCRIPTION, now, now);
       ensureDir(agentDir(DEFAULT_AGENT_ID));
       ensureDir(agentSkillsDir(DEFAULT_AGENT_ID));
+    } catch {
+      // DB not ready yet; the next construction will retry.
+    }
+  }
+
+  /**
+   * Seed the default agent with the balanced template. Only runs while the
+   * agent has no persona file at all: once the user has written (or emptied)
+   * one, their choice stands and nothing is re-applied.
+   */
+  private ensureDefaultTemplate(): void {
+    try {
+      const agent = this.get(DEFAULT_AGENT_ID);
+      const template = getAgentTemplate(DEFAULT_TEMPLATE_ID);
+      if (!agent || !template || readPersona(DEFAULT_AGENT_ID)) return;
+
+      // Keep a description the user has edited; only replace the placeholder.
+      const description =
+        agent.description && agent.description !== DEFAULT_DESCRIPTION
+          ? agent.description
+          : template.description;
+
+      writePersona(DEFAULT_AGENT_ID, {
+        name: agent.name,
+        description,
+        body: template.persona,
+      });
+      this.update(DEFAULT_AGENT_ID, { description, icon: template.icon });
     } catch {
       // DB not ready yet; the next construction will retry.
     }

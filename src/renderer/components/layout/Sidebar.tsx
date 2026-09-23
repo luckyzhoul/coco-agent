@@ -9,6 +9,7 @@ import { useUiStore } from "../../stores/useUiStore";
 import { AgentAvatar } from "../chat/AgentAvatar";
 import {
   ActivityIcon,
+  ArchiveIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -18,6 +19,7 @@ import {
   PlusIcon,
   SearchIcon,
   SettingsIcon,
+  UnarchiveIcon,
   WrenchIcon,
 } from "./icons";
 
@@ -113,9 +115,15 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     visible: boolean;
     url: string;
   }>({ open: false, visible: false, url: "" });
+  const [showArchived, setShowArchived] = useState(false);
 
   const activeSessions = useMemo(
     () => allSessions.filter((s) => !s.archived),
+    [allSessions],
+  );
+
+  const archivedSessions = useMemo(
+    () => allSessions.filter((s) => s.archived),
     [allSessions],
   );
 
@@ -259,9 +267,19 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     }
   };
 
+  const handleArchiveSession = async (
+    e: React.MouseEvent,
+    session: SessionInfo,
+    archived: boolean,
+  ) => {
+    e.stopPropagation();
+    const updated = await ipc.agent.setArchived(session.id, archived);
+    setSessions(updated);
+  };
+
   const runningMcpCount = mcpServers.filter((s) => s.enabled).length;
 
-  const renderSessionItem = (session: SessionInfo) => {
+  const renderSessionItem = (session: SessionInfo, isArchived = false) => {
     const sessionAgent = agents.find((a) => a.id === session.agentId);
     const workspaceName = session.workspacePath
       ? session.workspacePath
@@ -283,6 +301,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
           <AgentAvatar
             name={sessionAgent?.name || "CocoAgent"}
             agentId={sessionAgent?.id || "main"}
+            icon={sessionAgent?.icon}
             size="md"
             className="mt-0.5"
           />
@@ -299,6 +318,23 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
             </div>
           </div>
           <span className="flex shrink-0 self-center items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+            {!isArchived ? (
+              <span
+                onClick={(e) => handleArchiveSession(e, session, true)}
+                title="归档会话"
+                className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground"
+              >
+                <ArchiveIcon className="w-6 h-6" />
+              </span>
+            ) : (
+              <span
+                onClick={(e) => handleArchiveSession(e, session, false)}
+                title="取消归档"
+                className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground"
+              >
+                <UnarchiveIcon className="w-6 h-6" />
+              </span>
+            )}
             <span
               onClick={(e) => handleDeleteSession(e, session)}
               title="删除会话"
@@ -323,6 +359,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
           <AgentAvatar
             name={activeAgent?.name || "CocoAgent"}
             agentId={activeAgent?.id || "main"}
+            icon={activeAgent?.icon}
             size="md"
           />
           <div className="min-w-0 flex-1">
@@ -355,7 +392,12 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                       : "text-foreground/80 hover:bg-accent/40"
                   }`}
                 >
-                  <AgentAvatar name={agent.name} agentId={agent.id} size="sm" />
+                  <AgentAvatar
+                    name={agent.name}
+                    agentId={agent.id}
+                    icon={agent.icon}
+                    size="sm"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium truncate flex items-center gap-1.5">
                       {agent.name}
@@ -500,7 +542,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                       <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
                         今天
                       </div>
-                      {grouped.today.map(renderSessionItem)}
+                      {grouped.today.map((s) => renderSessionItem(s))}
                     </div>
                   )}
 
@@ -510,7 +552,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                       <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
                         本周
                       </div>
-                      {grouped.thisWeek.map(renderSessionItem)}
+                      {grouped.thisWeek.map((s) => renderSessionItem(s))}
                     </div>
                   )}
 
@@ -520,12 +562,42 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                       <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
                         更早
                       </div>
-                      {grouped.earlier.map(renderSessionItem)}
+                      {grouped.earlier.map((s) => renderSessionItem(s))}
                     </div>
                   )}
                 </>
               )}
           </div>
+
+          {/* 归档会话 */}
+          {archivedSessions.length > 0 && (
+            <div className="border-t border-border/40 pt-3 mt-1">
+              <button
+                onClick={() => setShowArchived(!showArchived)}
+                className="flex w-full items-center gap-2 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronRightIcon
+                  style={{
+                    transform: showArchived ? "rotate(90deg)" : "rotate(0deg)",
+                    transition: "transform 0.15s",
+                  }}
+                />
+                <ArchiveIcon />
+                <span>已归档</span>
+                <span className="ml-auto text-muted-foreground/70">
+                  {archivedSessions.length}
+                </span>
+              </button>
+
+              {showArchived && (
+                <div className="mt-1 space-y-0.5 px-1">
+                  {archivedSessions.map((session) =>
+                    renderSessionItem(session, true),
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

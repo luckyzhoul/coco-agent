@@ -76,6 +76,8 @@ export interface AgentInfo {
   id: string;
   name: string;
   description: string;
+  /** '' = 首字母头像；'builtin:<key>' = 内置图标；'custom' = agents/<id>/icon.png */
+  icon: string;
   createdAt: number;
   updatedAt: number;
 }
