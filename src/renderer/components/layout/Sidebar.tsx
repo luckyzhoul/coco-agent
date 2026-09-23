@@ -11,13 +11,11 @@ import {
   ActivityIcon,
   ArchiveIcon,
   ChevronLeftIcon,
-  ChevronRightIcon,
   ClockIcon,
   CloseIcon,
   PlusIcon,
   SearchIcon,
   SettingsIcon,
-  UnarchiveIcon,
   WrenchIcon,
 } from "./icons";
 
@@ -107,15 +105,9 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     visible: boolean;
     url: string;
   }>({ open: false, visible: false, url: "" });
-  const [showArchived, setShowArchived] = useState(false);
 
   const activeSessions = useMemo(
     () => allSessions.filter((s) => !s.archived),
-    [allSessions],
-  );
-
-  const archivedSessions = useMemo(
-    () => allSessions.filter((s) => s.archived),
     [allSessions],
   );
 
@@ -245,7 +237,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     setSessions(updated);
   };
 
-  const renderSessionItem = (session: SessionInfo, isArchived = false) => {
+  const renderSessionItem = (session: SessionInfo) => {
     const sessionAgent = agents.find((a) => a.id === session.agentId);
     const workspaceName = session.workspacePath
       ? session.workspacePath
@@ -284,23 +276,13 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
             </div>
           </div>
           <span className="flex shrink-0 self-center items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-            {!isArchived ? (
-              <span
-                onClick={(e) => handleArchiveSession(e, session, true)}
-                title="归档会话"
-                className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground"
-              >
-                <ArchiveIcon className="w-6 h-6" />
-              </span>
-            ) : (
-              <span
-                onClick={(e) => handleArchiveSession(e, session, false)}
-                title="取消归档"
-                className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground"
-              >
-                <UnarchiveIcon className="w-6 h-6" />
-              </span>
-            )}
+            <span
+              onClick={(e) => handleArchiveSession(e, session, true)}
+              title="归档会话"
+              className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground"
+            >
+              <ArchiveIcon className="w-6 h-6" />
+            </span>
             <span
               onClick={(e) => handleDeleteSession(e, session)}
               title="删除会话"
@@ -465,36 +447,6 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                 </>
               )}
           </div>
-
-          {/* 归档会话 */}
-          {archivedSessions.length > 0 && (
-            <div className="border-t border-border/40 pt-3 mt-1">
-              <button
-                onClick={() => setShowArchived(!showArchived)}
-                className="flex w-full items-center gap-2 px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ChevronRightIcon
-                  style={{
-                    transform: showArchived ? "rotate(90deg)" : "rotate(0deg)",
-                    transition: "transform 0.15s",
-                  }}
-                />
-                <ArchiveIcon />
-                <span>已归档</span>
-                <span className="ml-auto text-muted-foreground/70">
-                  {archivedSessions.length}
-                </span>
-              </button>
-
-              {showArchived && (
-                <div className="mt-1 space-y-0.5 px-1">
-                  {archivedSessions.map((session) =>
-                    renderSessionItem(session, true),
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
