@@ -43,9 +43,23 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     loadAll();
   }, [loadAll]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 backdrop-blur-sm">
-      <div className="bg-chat-assistant border border-border/60 rounded-2xl w-[900px] h-[80vh] flex flex-col shadow-xl">
+    <div
+      className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-chat-assistant border border-border/60 rounded-2xl w-[900px] h-[80vh] flex flex-col shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
           <h2 className="text-lg font-semibold">设置</h2>

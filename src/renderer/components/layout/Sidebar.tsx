@@ -375,9 +375,21 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setSearchQuery("");
+                }}
                 placeholder="搜索聊天记录"
-                className="w-full bg-input/50 border border-transparent rounded-xl pl-8 pr-3 py-1.5 text-xs outline-none placeholder:text-muted-foreground/50 focus:border-border/60 focus:bg-chat-assistant transition-colors"
+                className="w-full bg-input/50 border border-transparent rounded-xl pl-8 pr-7 py-1.5 text-xs outline-none placeholder:text-muted-foreground/50 focus:border-border/60 focus:bg-chat-assistant transition-colors"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
+                  title="清空搜索"
+                >
+                  <CloseIcon className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
