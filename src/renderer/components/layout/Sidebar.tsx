@@ -9,7 +9,6 @@ import { useUiStore } from "../../stores/useUiStore";
 import { AgentAvatar } from "../chat/AgentAvatar";
 import {
   ActivityIcon,
-  ArchiveIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -19,7 +18,6 @@ import {
   PlusIcon,
   SearchIcon,
   SettingsIcon,
-  UnarchiveIcon,
   WrenchIcon,
 } from "./icons";
 
@@ -27,16 +25,57 @@ interface SidebarProps {
   onOpenSettings: () => void;
 }
 
-function formatTime(ts: number): string {
-  const date = new Date(ts);
+function formatRelativeTime(ts: number): string {
   const now = new Date();
+  const date = new Date(ts);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
   if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString("zh-CN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (diffMins < 1) return "刚刚";
+    if (diffMins < 60) return `${diffMins} 分钟前`;
+    return `${diffHours} 小时前`;
   }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return "昨天";
+  }
+
+  if (diffDays < 7) {
+    return `${diffDays} 天前`;
+  }
+
   return date.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+}
+
+function groupSessionsByTime(sessions: SessionInfo[]): {
+  today: SessionInfo[];
+  thisWeek: SessionInfo[];
+  earlier: SessionInfo[];
+} {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const weekStart = todayStart - 6 * 24 * 60 * 60 * 1000; // 7天内（含今天）
+
+  const today: SessionInfo[] = [];
+  const thisWeek: SessionInfo[] = [];
+  const earlier: SessionInfo[] = [];
+
+  for (const s of sessions) {
+    if (s.updatedAt >= todayStart) {
+      today.push(s);
+    } else if (s.updatedAt >= weekStart) {
+      thisWeek.push(s);
+    } else {
+      earlier.push(s);
+    }
+  }
+
+  return { today, thisWeek, earlier };
 }
 
 export function Sidebar({ onOpenSettings }: SidebarProps) {
@@ -57,19 +96,11 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   const setActiveAgent = useAgentStore((s) => s.setActiveAgent);
   const toggleSkillsModal = useUiStore((s) => s.toggleSkillsModal);
 
-  const archivedSessions = useMemo(
-    () => allSessions.filter((s) => s.archived),
-    [allSessions],
-  );
-
   const activeAgent = agents.find((a) => a.id === activeAgentId) ?? null;
 
   const [isCreating, setIsCreating] = useState(false);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const agentPickerRef = useRef<HTMLDivElement>(null);
-  const [showArchived, setShowArchived] = useState(false);
-  const [showMcpSection, setShowMcpSection] = useState(true);
-  const [showSessionsSection, setShowSessionsSection] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<
     {
@@ -82,6 +113,16 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     visible: boolean;
     url: string;
   }>({ open: false, visible: false, url: "" });
+
+  const activeSessions = useMemo(
+    () => allSessions.filter((s) => !s.archived),
+    [allSessions],
+  );
+
+  const grouped = useMemo(
+    () => groupSessionsByTime(activeSessions),
+    [activeSessions],
+  );
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -202,16 +243,6 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     }
   };
 
-  const handleArchiveSession = async (
-    e: React.MouseEvent,
-    session: SessionInfo,
-    archived: boolean,
-  ) => {
-    e.stopPropagation();
-    const updated = await ipc.agent.setArchived(session.id, archived);
-    setSessions(updated);
-  };
-
   const handleDeleteSession = async (
     e: React.MouseEvent,
     session: SessionInfo,
@@ -229,6 +260,57 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   };
 
   const runningMcpCount = mcpServers.filter((s) => s.enabled).length;
+
+  const renderSessionItem = (session: SessionInfo) => {
+    const sessionAgent = agents.find((a) => a.id === session.agentId);
+    const workspaceName = session.workspacePath
+      ? session.workspacePath
+          .split(/[/\\]/)
+          .filter(Boolean)
+          .pop() || session.workspacePath
+      : "";
+    return (
+      <button
+        key={session.id}
+        onClick={() => handleSwitchSession(session)}
+        className={`group w-full rounded-xl px-2.5 py-2 text-left transition-colors ${
+          session.id === activeSessionId
+            ? "bg-accent/70 text-foreground"
+            : "text-foreground/80 hover:bg-accent/40"
+        }`}
+      >
+        <div className="flex items-start gap-2">
+          <AgentAvatar
+            name={sessionAgent?.name || "CocoAgent"}
+            agentId={sessionAgent?.id || "main"}
+            size="md"
+            className="mt-0.5"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1">
+              <span className="truncate text-sm font-medium">
+                {session.title}
+              </span>
+            </div>
+            <div className="truncate text-[11px] text-muted-foreground mt-0.5">
+              {sessionAgent?.name || "CocoAgent"} ·{" "}
+              {workspaceName || "未选择空间"} ·{" "}
+              {formatRelativeTime(session.updatedAt)}
+            </div>
+          </div>
+          <span className="flex shrink-0 self-center items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+            <span
+              onClick={(e) => handleDeleteSession(e, session)}
+              title="删除会话"
+              className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-destructive"
+            >
+              <CloseIcon className="w-6 h-6" />
+            </span>
+          </span>
+        </div>
+      </button>
+    );
+  };
 
   return (
     <div className="flex h-full w-full flex-col border-r border-border/60 bg-card/40 backdrop-blur-sm">
@@ -358,26 +440,8 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-3 pb-3">
-          <div className="flex items-center gap-2 mb-2 px-2">
-            <button
-              onClick={() => setShowSessionsSection(!showSessionsSection)}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ChevronRightIcon
-                style={{
-                  transform: showSessionsSection
-                    ? "rotate(90deg)"
-                    : "rotate(0deg)",
-                  transition: "transform 0.15s",
-                }}
-              />
-            </button>
-            <span className="text-xs font-medium text-muted-foreground">
-              搜索聊天记录
-            </span>
-          </div>
-
-          <div className="px-1 mb-2">
+          {/* 搜索框 */}
+          <div className="px-1 mb-3">
             <div className="relative">
               <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
               <input
@@ -390,234 +454,78 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
             </div>
           </div>
 
-          {showSessionsSection && (
-            <div className="space-y-0.5">
-              <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
-                置顶
-              </div>
-
-              <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
-                今天
-              </div>
-
+          <div className="space-y-3">
+              {/* 搜索结果 */}
               {searchQuery.trim() ? (
                 searchResults.length === 0 ? (
                   <div className="px-2 py-4 text-center text-xs text-muted-foreground">
                     没有匹配结果
                   </div>
                 ) : (
-                  searchResults.map((result) => (
-                    <button
-                      key={result.session.id}
-                      onClick={() => handleSwitchSession(result.session)}
-                      className={`w-full rounded-xl px-3 py-2 text-left transition-colors ${
-                        result.session.id === activeSessionId
-                          ? "bg-accent/70 text-foreground"
-                          : "text-foreground/80 hover:bg-accent/40"
-                      }`}
-                    >
-                      <div className="truncate text-sm font-medium">
-                        {result.session.title}
-                      </div>
-                      {result.matches.map((m) => (
-                        <div
-                          key={m.messageId}
-                          className="truncate text-xs text-muted-foreground/80 mt-0.5"
-                        >
-                          {m.snippet}
-                        </div>
-                      ))}
-                    </button>
-                  ))
-                )
-              ) : allSessions.filter((s) => !s.archived).length === 0 ? (
-                <div className="px-2 py-4 text-center text-xs text-muted-foreground">
-                  暂无对话
-                </div>
-              ) : (
-                allSessions
-                  .filter((s) => !s.archived)
-                  .map((session) => {
-                    const sessionAgent = agents.find(
-                      (a) => a.id === session.agentId,
-                    );
-                    const workspaceName = session.workspacePath
-                      ? session.workspacePath
-                          .split(/[/\\]/)
-                          .filter(Boolean)
-                          .pop() || session.workspacePath
-                      : "";
-                    return (
+                  <div className="space-y-0.5">
+                    {searchResults.map((result) => (
                       <button
-                        key={session.id}
-                        onClick={() => handleSwitchSession(session)}
-                        className={`group w-full rounded-xl px-2.5 py-2 text-left transition-colors ${
-                          session.id === activeSessionId
+                        key={result.session.id}
+                        onClick={() => handleSwitchSession(result.session)}
+                        className={`w-full rounded-xl px-3 py-2 text-left transition-colors ${
+                          result.session.id === activeSessionId
                             ? "bg-accent/70 text-foreground"
                             : "text-foreground/80 hover:bg-accent/40"
                         }`}
                       >
-                        <div className="flex items-start gap-2">
-                          <AgentAvatar
-                            name={sessionAgent?.name || "CocoAgent"}
-                            agentId={sessionAgent?.id || "main"}
-                            size="md"
-                            className="mt-0.5"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1">
-                              <span className="truncate text-sm font-medium">
-                                {session.title}
-                              </span>
-                            </div>
-                            <div className="truncate text-[11px] text-muted-foreground mt-0.5">
-                              {sessionAgent?.name || "CocoAgent"} ·{" "}
-                              {workspaceName || "未选择空间"} ·{" "}
-                              {formatTime(session.updatedAt)}
-                            </div>
-                          </div>
-                          <span className="flex shrink-0 self-center items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                            <span
-                              onClick={(e) =>
-                                handleArchiveSession(e, session, true)
-                              }
-                              title="归档会话"
-                              className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground"
-                            >
-                              <ArchiveIcon className="w-6 h-6" />
-                            </span>
-                            <span
-                              onClick={(e) => handleDeleteSession(e, session)}
-                              title="删除会话"
-                              className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-destructive"
-                            >
-                              <CloseIcon className="w-6 h-6" />
-                            </span>
-                          </span>
+                        <div className="truncate text-sm font-medium">
+                          {result.session.title}
                         </div>
+                        {result.matches.map((m) => (
+                          <div
+                            key={m.messageId}
+                            className="truncate text-xs text-muted-foreground/80 mt-0.5"
+                          >
+                            {m.snippet}
+                          </div>
+                        ))}
                       </button>
-                    );
-                  })
-              )}
-
-              <div className="px-2 py-1 mt-2 text-xs font-medium text-muted-foreground">
-                本周
-              </div>
-            </div>
-          )}
-        </div>
-
-        {archivedSessions.length > 0 && (
-          <div className="px-3 pb-3 border-t border-border/40 pt-3">
-            <button
-              onClick={() => setShowArchived(!showArchived)}
-              className="flex w-full items-center gap-2 px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ChevronRightIcon
-                style={{
-                  transform: showArchived ? "rotate(90deg)" : "rotate(0deg)",
-                  transition: "transform 0.15s",
-                }}
-              />
-              <ArchiveIcon />
-              <span>已归档</span>
-              <span className="ml-auto text-muted-foreground/70">
-                {archivedSessions.length}
-              </span>
-            </button>
-
-            {showArchived && (
-              <div className="mt-1 space-y-0.5">
-                {archivedSessions.map((session) => (
-                  <button
-                    key={session.id}
-                    onClick={() => handleSwitchSession(session)}
-                    className={`group flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
-                      session.id === activeSessionId
-                        ? "bg-accent/80 text-foreground"
-                        : "text-foreground/70 hover:bg-accent/40"
-                    }`}
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-medium">
-                        {session.title}
-                      </span>
-                      <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/80">
-                        {formatTime(session.updatedAt)} · {session.messageCount}{" "}
-                        条
-                      </span>
-                    </span>
-                    <span className="flex shrink-0 self-center items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                      <span
-                        onClick={(e) => handleArchiveSession(e, session, false)}
-                        title="取消归档"
-                        className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground"
-                      >
-                        <UnarchiveIcon className="w-6 h-6" />
-                      </span>
-                      <span
-                        onClick={(e) => handleDeleteSession(e, session)}
-                        title="删除会话"
-                        className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-destructive"
-                      >
-                        <CloseIcon className="w-6 h-6" />
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="px-3 pb-3 border-t border-border/40 pt-3">
-          <button
-            onClick={() => setShowMcpSection(!showMcpSection)}
-            className="flex w-full items-center gap-2 mb-2 px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ChevronRightIcon
-              style={{
-                transform: showMcpSection ? "rotate(90deg)" : "rotate(0deg)",
-                transition: "transform 0.15s",
-              }}
-            />
-            <PlugIcon />
-            <span>MCP</span>
-            <span className="ml-auto text-xs text-muted-foreground/70">
-              {runningMcpCount}/{mcpServers.length} 运行中
-            </span>
-          </button>
-
-          {showMcpSection && (
-            <div className="space-y-0.5">
-              {mcpServers.length === 0 ? (
-                <div className="px-2 py-2 text-center text-xs text-muted-foreground/60">
-                  暂无 MCP 服务器
+                    ))}
+                  </div>
+                )
+              ) : activeSessions.length === 0 ? (
+                <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                  暂无对话
                 </div>
               ) : (
-                mcpServers.slice(0, 5).map((server) => (
-                  <div
-                    key={server.id}
-                    className="flex items-center gap-2 px-2 py-1 text-xs"
-                  >
-                    <div
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        server.enabled ? "bg-emerald-500" : "bg-muted"
-                      }`}
-                    />
-                    <span className="truncate text-muted-foreground">
-                      {server.name}
-                    </span>
-                  </div>
-                ))
+                <>
+                  {/* 今天 */}
+                  {grouped.today.length > 0 && (
+                    <div className="space-y-0.5">
+                      <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                        今天
+                      </div>
+                      {grouped.today.map(renderSessionItem)}
+                    </div>
+                  )}
+
+                  {/* 本周 */}
+                  {grouped.thisWeek.length > 0 && (
+                    <div className="space-y-0.5">
+                      <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                        本周
+                      </div>
+                      {grouped.thisWeek.map(renderSessionItem)}
+                    </div>
+                  )}
+
+                  {/* 更早 */}
+                  {grouped.earlier.length > 0 && (
+                    <div className="space-y-0.5">
+                      <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                        更早
+                      </div>
+                      {grouped.earlier.map(renderSessionItem)}
+                    </div>
+                  )}
+                </>
               )}
-              {mcpServers.length > 5 && (
-                <div className="px-2 py-1 text-xs text-muted-foreground/60">
-                  +{mcpServers.length - 5} 更多
-                </div>
-              )}
-            </div>
-          )}
+          </div>
         </div>
       </div>
 

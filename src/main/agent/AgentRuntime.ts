@@ -102,7 +102,15 @@ export class AgentRuntime {
   }
 
   private setStatus(status: Partial<AgentStatus>): void {
-    this.status = { ...this.status, ...status };
+    const next = { ...this.status, ...status };
+    if (
+      next.state === this.status.state &&
+      next.currentTool === this.status.currentTool &&
+      next.sessionId === this.status.sessionId
+    ) {
+      return;
+    }
+    this.status = next;
     this.emit(AGENT_EVENT_STATUS, this.status);
   }
 
@@ -730,7 +738,6 @@ export class AgentRuntime {
         // Best effort
       }
     }
-    this.setStatus({ state: 'idle', currentTool: undefined });
   }
 
   private handleSessionEvent(event: AgentSessionEvent): void {
@@ -860,7 +867,6 @@ export class AgentRuntime {
         }
 
         this.activeToolCalls.clear();
-        this.setStatus({ state: 'idle', currentTool: undefined });
         break;
       }
 
@@ -973,6 +979,7 @@ export class AgentRuntime {
           });
         }
         if (!willRetry) {
+          this.setStatus({ state: 'idle', currentTool: undefined });
           this.resetTurnState();
         }
         break;
