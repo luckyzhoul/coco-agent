@@ -63,6 +63,7 @@ import {
   searchSessions,
   setSessionArchived,
   updateSessionWorkspace,
+  findMostRecentEmptySession,
   type SessionSearchResult
 } from './session-store';
 
@@ -445,6 +446,13 @@ export class AgentRuntime {
   }
 
   async newSession(workspacePath: string): Promise<string> {
+    const activeAgentId = agentManager.getActiveId();
+    const emptySession = findMostRecentEmptySession(activeAgentId, workspacePath);
+    if (emptySession) {
+      await this.switchSession(emptySession.id);
+      return emptySession.id;
+    }
+
     // Clean up previous session
     if (this.unsubscriber) {
       this.unsubscriber();
