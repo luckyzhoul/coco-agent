@@ -127,6 +127,11 @@ interface ChatState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clear: () => void;
+
+  // Compaction
+  compactionMessage: string | null;
+  setCompactionMessage: (msg: string | null) => void;
+  addSystemMessage: (text: string) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -500,5 +505,21 @@ export const useChatStore = create<ChatState>((set) => ({
       activeSessionId: null,
       isLoading: false,
       error: null
-    })
+    }),
+
+  compactionMessage: null,
+  setCompactionMessage: (msg) => set({ compactionMessage: msg }),
+
+  addSystemMessage: (text) =>
+    set((state) => ({
+      messages: [
+        ...state.messages,
+        {
+          id: `sys_${Date.now()}`,
+          role: 'system',
+          content: text,
+          timestamp: Date.now()
+        }
+      ]
+    }))
 }));

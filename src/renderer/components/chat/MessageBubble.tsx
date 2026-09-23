@@ -88,6 +88,17 @@ function MessageActions({ message, canRegenerate }: { message: Message; canRegen
 
 export function MessageBubble({ message, isLast }: MessageBubbleProps) {
   const isUser = message.role === 'user';
+  const isSystem = message.role === 'system';
+
+  if (isSystem) {
+    return (
+      <div className="flex w-full justify-center py-2">
+        <div className="max-w-[70%] rounded-full px-4 py-1.5 bg-muted/40 border border-border/30 text-[11.5px] text-muted-foreground text-center">
+          {message.content}
+        </div>
+      </div>
+    );
+  }
   const activeAgent = useAgentStore((s) =>
     s.agents.find((a) => a.id === s.activeAgentId)
   );

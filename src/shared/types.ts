@@ -209,6 +209,21 @@ export interface AppSettings {
   updateFeedUrl: string;
 }
 
+export interface Attachment {
+  name: string;
+  path: string;
+  size: number;
+  type: string;
+}
+
+export interface SlashCommandInfo {
+  name: string;
+  description: string;
+  icon?: string;
+  /** If true, the command is handled by the main process (not sent to the model). */
+  isBuiltin?: boolean;
+}
+
 export interface ToolApprovalRequest {
   id: string;
   toolName: string;

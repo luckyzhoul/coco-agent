@@ -38,6 +38,9 @@ import {
   AGENT_SEARCH_SESSIONS,
   AGENT_ARCHIVE_SESSION,
   AGENT_REBIND_WORKSPACE,
+  AGENT_SET_THINKING_LEVEL,
+  AGENT_COMPACT_CONTEXT,
+  AGENT_LIST_COMMANDS,
   SETTINGS_GET,
   SETTINGS_SET,
   SETTINGS_RESET,
@@ -101,7 +104,7 @@ import {
   WINDOW_CLOSE,
   WINDOW_IS_MAXIMIZED
 } from '../../shared/ipc-channels';
-import type { AppSettings, ModelConfig, MCPConfig, ToolApprovalDecision } from '../../shared/types';
+import type { AppSettings, Attachment, ModelConfig, MCPConfig, SlashCommandInfo, ToolApprovalDecision } from '../../shared/types';
 import { paths } from '../paths';
 import { agentManager } from '../agents/AgentManager';
 import { readPersona, writePersona } from '../agents/persona';
@@ -198,9 +201,9 @@ export function registerIpcHandlers(
     return agentRuntime.rebindWorkspace(workspacePath);
   });
 
-  ipcMain.handle(AGENT_SEND_MESSAGE, async (_e, content: string) => {
+  ipcMain.handle(AGENT_SEND_MESSAGE, async (_e, payload: { content: string; attachments?: Attachment[] }) => {
     agentRuntime.setMainWindow(getMainWindow());
-    await agentRuntime.sendMessage(content);
+    await agentRuntime.sendMessage(payload.content, payload.attachments ?? []);
   });
 
   ipcMain.handle(AGENT_ABORT, async () => {
@@ -210,6 +213,20 @@ export function registerIpcHandlers(
   ipcMain.handle(AGENT_REGENERATE, async () => {
     agentRuntime.setMainWindow(getMainWindow());
     await agentRuntime.regenerateLast();
+  });
+
+  ipcMain.handle(AGENT_SET_THINKING_LEVEL, async (_e, level: string) => {
+    agentRuntime.setMainWindow(getMainWindow());
+    return agentRuntime.setThinkingLevel(level);
+  });
+
+  ipcMain.handle(AGENT_COMPACT_CONTEXT, async () => {
+    agentRuntime.setMainWindow(getMainWindow());
+    await agentRuntime.compactContext();
+  });
+
+  ipcMain.handle(AGENT_LIST_COMMANDS, () => {
+    return agentRuntime.listCommands() as SlashCommandInfo[];
   });
 
   // Settings handlers

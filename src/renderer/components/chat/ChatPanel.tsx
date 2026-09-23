@@ -26,6 +26,7 @@ export function ChatPanel() {
   const addFileDelivery = useChatStore((s) => s.addFileDelivery);
   const addSummaryPart = useChatStore((s) => s.addSummaryPart);
   const finishMessage = useChatStore((s) => s.finishMessage);
+  const addSystemMessage = useChatStore((s) => s.addSystemMessage);
 
   const statusRef = useRef(status);
   statusRef.current = status;
@@ -113,6 +114,16 @@ export function ChatPanel() {
     'agentTurnEnd',
     (data: { messageId: string; partIndex: number; summary: TurnSummary }) => {
       addSummaryPart(data.messageId, data.partIndex, data.summary);
+    }
+  );
+
+  useAgentEvent(
+    'agentCompaction',
+    (data: { message: string; removedTokens?: number }) => {
+      const text = data.removedTokens
+        ? `${data.message}（约减少 ${data.removedTokens} tokens）`
+        : data.message;
+      addSystemMessage(text);
     }
   );
 
