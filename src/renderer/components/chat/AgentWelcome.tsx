@@ -64,10 +64,10 @@ export function AgentWelcome() {
         {agents.length > 1 && (
           <div
             ref={scrollRef}
-            className="w-full overflow-x-auto scrollbar-hide mb-5"
+            className="mb-5 flex w-full justify-center overflow-x-auto scrollbar-hide"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            <div className="flex gap-2 px-1 pb-1" style={{ width: 'max-content' }}>
+            <div className="flex w-max items-center justify-center gap-2 px-1 pb-1">
               {agents.map((agent) => {
                 const isActive = agent.id === activeAgentId;
                 return (
