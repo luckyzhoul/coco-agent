@@ -260,25 +260,37 @@ export class AgentManager {
    * Seed the default agent with the balanced template. Only runs while the
    * agent has no persona file at all: once the user has written (or emptied)
    * one, their choice stands and nothing is re-applied.
+   *
+   * The default agent's icon is the exception: it is always kept in sync with
+   * the template icon (the coco brand mark), unless the user uploaded a custom
+   * avatar. This is a brand-consistency migration for agents seeded before
+   * 'coco' became the built-in default.
    */
   private ensureDefaultTemplate(): void {
     try {
       const agent = this.get(DEFAULT_AGENT_ID);
       const template = getAgentTemplate(DEFAULT_TEMPLATE_ID);
-      if (!agent || !template || readPersona(DEFAULT_AGENT_ID)) return;
+      if (!agent || !template) return;
 
-      // Keep a description the user has edited; only replace the placeholder.
-      const description =
-        agent.description && agent.description !== DEFAULT_DESCRIPTION
-          ? agent.description
-          : template.description;
+      if (!readPersona(DEFAULT_AGENT_ID)) {
+        // Keep a description the user has edited; only replace the placeholder.
+        const description =
+          agent.description && agent.description !== DEFAULT_DESCRIPTION
+            ? agent.description
+            : template.description;
 
-      writePersona(DEFAULT_AGENT_ID, {
-        name: agent.name,
-        description,
-        body: template.persona,
-      });
-      this.update(DEFAULT_AGENT_ID, { description, icon: template.icon });
+        writePersona(DEFAULT_AGENT_ID, {
+          name: agent.name,
+          description,
+          body: template.persona,
+        });
+        this.update(DEFAULT_AGENT_ID, { description, icon: template.icon });
+        return;
+      }
+
+      if (agent.icon !== CUSTOM_ICON && agent.icon !== template.icon) {
+        this.update(DEFAULT_AGENT_ID, { icon: template.icon });
+      }
     } catch {
       // DB not ready yet; the next construction will retry.
     }

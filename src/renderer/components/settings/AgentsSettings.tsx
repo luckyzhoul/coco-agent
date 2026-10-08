@@ -15,6 +15,7 @@ import { AgentAvatar } from '../chat/AgentAvatar';
 import { CheckIcon } from '../layout/icons';
 
 const ICON_LABELS: Record<BuiltinAgentIconKey, string> = {
+  coco: 'Coco',
   owl: '猫头鹰',
   whale: '鲸鱼',
   fox: '狐狸',

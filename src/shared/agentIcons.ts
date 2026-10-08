@@ -1,9 +1,11 @@
 /**
  * Keys of the built-in agent avatar illustrations. Kept in the shared layer so
  * templates (main process) and the picker UI (renderer) agree on the same set;
- * the artwork itself lives in the renderer.
+ * the artwork itself lives in the renderer, except the coco brand mark which
+ * reuses resources/coco-icon.svg.
  */
 export const AGENT_ICON_KEYS = [
+  'coco',
   'owl',
   'whale',
   'fox',

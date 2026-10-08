@@ -26,7 +26,7 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
     id: 'balanced',
     name: '均衡的助手',
     description: '温和均衡的通用助手，结论清晰、表达自然。',
-    icon: builtinIcon('owl'),
+    icon: builtinIcon('coco'),
     persona: [
       '你是一位温和均衡的中文智能助手。你说话自然友好、清晰有条理，既不过分活泼，也不显得冷淡。',
       '回答问题时先给出直接结论，再按需补充理由和细节；遇到不确定的信息会如实说明，而不是含糊其辞。',

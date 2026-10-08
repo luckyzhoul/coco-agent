@@ -42,7 +42,7 @@ for (const tpl of AGENT_TEMPLATES) {
   );
 }
 
-assert(AGENT_ICON_KEYS.length === 8, 'eight built-in icons');
+assert(AGENT_ICON_KEYS.length === 9, 'nine built-in icons');
 assert(new Set(AGENT_ICON_KEYS).size === AGENT_ICON_KEYS.length, 'icon keys are unique');
 
 // Icon value parsing: only known 'builtin:<key>' values resolve.

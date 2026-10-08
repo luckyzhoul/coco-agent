@@ -1,11 +1,14 @@
 import React from 'react';
 import type { BuiltinAgentIconKey } from '@shared/agentIcons';
+import cocoIconUrl from '@resources/coco-icon.svg';
 
 /**
  * Built-in agent avatars: a warm disc with a two-tone silhouette, drawn at
  * 64x64 so they scale cleanly from the 20px sidebar chip to the 96px welcome
  * avatar. Like the gradients in utils/agentColors.ts these are illustration
- * assets with their own fixed palette, not theme chrome.
+ * assets with their own fixed palette, not theme chrome. The coco brand mark
+ * is the exception: it reuses resources/coco-icon.svg so a redesign there
+ * propagates to every agent avatar automatically.
  */
 interface IconProps {
   className?: string;
@@ -156,7 +159,21 @@ function Sun({ className, style }: IconProps) {
   );
 }
 
+/** Coco brand mark: the source SVG, shown as-is inside the round avatar box. */
+function Coco({ className, style }: IconProps) {
+  return (
+    <img
+      src={cocoIconUrl}
+      alt=""
+      draggable={false}
+      className={className}
+      style={{ ...style, objectFit: 'contain' }}
+    />
+  );
+}
+
 export const AGENT_ICONS: Record<BuiltinAgentIconKey, React.FC<IconProps>> = {
+  coco: Coco,
   owl: Owl,
   whale: Whale,
   fox: Fox,
