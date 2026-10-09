@@ -458,8 +458,8 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
         </div>
       </div>
 
-      <div className="border-t border-border/50 p-2 space-y-1">
-        {browserStatus.open && (
+      {browserStatus.open && (
+        <div className="border-t border-border/50 p-2">
           <div className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             <span
@@ -483,8 +483,8 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
               <CloseIcon className="w-3 h-3" />
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
