@@ -47,6 +47,7 @@ import {
   AGENT_EVENT_FILE_DELIVERY,
   AGENT_EVENT_TURN_END,
   AGENT_EVENT_COMPACTION,
+  AGENT_EVENT_SESSION_TITLE,
   WORKSPACE_SELECT,
   WORKSPACE_GET_CURRENT,
   WORKSPACE_LIST_RECENT,
@@ -323,6 +324,12 @@ const electronAPI = {
         callback(data as { message: string; removedTokens?: number });
       ipcRenderer.on(AGENT_EVENT_COMPACTION, listener);
       return () => ipcRenderer.removeListener(AGENT_EVENT_COMPACTION, listener);
+    },
+    agentSessionTitle: (callback: (data: { sessionId: string; title: string }) => void) => {
+      const listener = (_: unknown, data: unknown) =>
+        callback(data as { sessionId: string; title: string });
+      ipcRenderer.on(AGENT_EVENT_SESSION_TITLE, listener);
+      return () => ipcRenderer.removeListener(AGENT_EVENT_SESSION_TITLE, listener);
     },
     mcpStatusChanged: (callback: (data: { id: string; running: boolean; error?: string }) => void) => {
       const listener = (_: unknown, data: unknown) =>

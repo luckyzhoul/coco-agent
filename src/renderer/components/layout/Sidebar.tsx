@@ -1,6 +1,6 @@
 import type { SessionInfo } from "@shared/types";
 import React, { useEffect, useMemo, useState } from "react";
-import { useIpcRenderer } from "../../hooks/useIpcRenderer";
+import { useAgentEvent, useIpcRenderer } from "../../hooks/useIpcRenderer";
 import { useAgentStore } from "../../stores/useAgentStore";
 import { useChatStore } from "../../stores/useChatStore";
 import { useSessionStore } from "../../stores/useSessionStore";
@@ -139,6 +139,14 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     const interval = setInterval(poll, 2000);
     return () => clearInterval(interval);
   }, [ipc]);
+
+  // 标题由主进程在首轮结束后生成，这里收到通知后刷新侧边栏列表。
+  useAgentEvent("agentSessionTitle", () => {
+    ipc.agent
+      .listSessions()
+      .then(setSessions)
+      .catch(() => {});
+  });
 
   const handleToggleBrowserVisible = async () => {
     const next = !browserStatus.visible;

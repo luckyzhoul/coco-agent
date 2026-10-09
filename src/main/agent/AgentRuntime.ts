@@ -38,7 +38,8 @@ import {
   AGENT_EVENT_MESSAGE_END,
   AGENT_EVENT_FILE_DELIVERY,
   AGENT_EVENT_TURN_END,
-  AGENT_EVENT_COMPACTION
+  AGENT_EVENT_COMPACTION,
+  AGENT_EVENT_SESSION_TITLE
 } from '../../shared/ipc-channels';
 import type {
   Message,
@@ -55,6 +56,7 @@ import type {
   SlashCommandInfo
 } from '../../shared/types';
 import * as fs from 'node:fs';
+import { deriveFallbackTitle, generateTitle, isPlaceholderTitle } from './title';
 import {
   listSessions,
   createSessionMeta,
@@ -94,6 +96,8 @@ export class AgentRuntime {
   private turnThinkingCount: number = 0;
   // Backward compat: accumulate all tool calls for the current message
   private activeToolCalls: Map<string, ToolCall> = new Map();
+  // 正在生成标题的会话，避免同一会话并发触发多次。
+  private titleJobs = new Set<string>();
 
   setMainWindow(window: BrowserWindow | null): void {
     this.mainWindow = window;
@@ -944,19 +948,12 @@ export class AgentRuntime {
           this.emit(AGENT_EVENT_MESSAGE_END, { messageId: this.currentMessageId });
         }
 
-        // Update session meta from the first non-empty text
-        const firstText = (assistantMsg.parts || [])
-          .find((p): p is TextPart => p.type === 'text' && p.content.trim().length > 0);
-        if (firstText) {
-          const firstLine = firstText.content.trim().split('\n')[0].slice(0, 50);
-          const sessions = listSessions();
-          const meta = sessions.find(s => s.id === this.activeSessionId);
-          if (meta && firstLine) {
-            updateSessionMeta(this.activeSessionId, {
-              title: firstLine || meta.title,
-              messageCount: this.messageCount
-            });
-          }
+        // 会话标题只在首轮结束后生成一次（见 maybeGenerateTitle），
+        // 这里只负责同步消息计数（空会话复用依赖它）。
+        const sessionId = this.activeSessionId;
+        if (sessionId) {
+          updateSessionMeta(sessionId, { messageCount: this.messageCount });
+          void this.maybeGenerateTitle(sessionId);
         }
 
         this.activeToolCalls.clear();
@@ -1093,6 +1090,48 @@ export class AgentRuntime {
 
       default:
         break;
+    }
+  }
+
+  /**
+   * 首轮结束后生成会话标题，只生成一次。
+   *
+   * 幂等条件：标题仍是 newSession 的占位值（以「新对话」开头）。
+   * 先用首条用户消息给出即时回退标题（保证 UI 立刻有内容），
+   * 再异步调用模型总结出更贴切的标题；模型不可用或失败时保留回退标题。
+   */
+  private async maybeGenerateTitle(sessionId: string): Promise<void> {
+    if (this.titleJobs.has(sessionId)) return;
+
+    const meta = listSessions().find((s) => s.id === sessionId);
+    if (!meta || !isPlaceholderTitle(meta.title)) return;
+
+    const firstUser = loadSessionMessages(sessionId).find(
+      (m) => m.role === 'user' && (m.content || '').trim().length > 0
+    );
+    const firstUserText = (firstUser?.content || '').trim();
+    if (!firstUserText) return;
+
+    this.titleJobs.add(sessionId);
+    try {
+      const fallback = deriveFallbackTitle(firstUserText);
+      if (fallback) {
+        updateSessionMeta(sessionId, { title: fallback });
+        this.emit(AGENT_EVENT_SESSION_TITLE, { sessionId, title: fallback });
+      }
+
+      const model = modelManager.getActive();
+      if (!model) return;
+
+      const title = await generateTitle(model, firstUserText);
+      if (title) {
+        updateSessionMeta(sessionId, { title });
+        this.emit(AGENT_EVENT_SESSION_TITLE, { sessionId, title });
+      }
+    } catch (err) {
+      console.error('生成会话标题失败：', err);
+    } finally {
+      this.titleJobs.delete(sessionId);
     }
   }
 

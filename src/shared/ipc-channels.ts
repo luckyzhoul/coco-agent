@@ -28,6 +28,7 @@ export const AGENT_EVENT_MESSAGE_END = 'agent:event:messageEnd';
 export const AGENT_EVENT_FILE_DELIVERY = 'agent:event:fileDelivery';
 export const AGENT_EVENT_TURN_END = 'agent:event:turnEnd';
 export const AGENT_EVENT_COMPACTION = 'agent:event:compaction';
+export const AGENT_EVENT_SESSION_TITLE = 'agent:event:sessionTitle';
 
 // Workspace channels
 export const WORKSPACE_SELECT = 'workspace:select';
