@@ -2,7 +2,7 @@ import { Type } from '@sinclair/typebox';
 import { defineTool } from '@earendil-works/pi-coding-agent';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import { McpServer } from './McpServer';
-import type { ApprovalManager } from '../approval/ApprovalManager';
+import type { ToolGate } from '../security/toolGate';
 
 interface McpToolInfo {
   name: string;
@@ -15,12 +15,14 @@ interface McpToolInfo {
  * Each MCP tool is wrapped as a custom tool that forwards calls via JSON-RPC.
  *
  * Tool names are prefixed with "mcp__<serverId>__" to avoid collisions.
+ * Every call passes the security gate first: readonly denies, ask prompts,
+ * auto allows only clearly read-only verbs (see security/toolGate).
  */
 export function buildMcpTools(
   server: McpServer,
   serverId: string,
   tools: McpToolInfo[],
-  approvalManager?: ApprovalManager
+  gate?: ToolGate
 ): ToolDefinition[] {
   return tools.map((tool) => {
     const toolName = `mcp__${serverId}__${tool.name}`;
@@ -33,16 +35,16 @@ export function buildMcpTools(
       async execute(toolCallId, params, signal) {
         const inputParams = params as Record<string, unknown>;
 
-        // Check if approval is required
-        if (approvalManager) {
-          const approved = await approvalManager.requireApproval(
+        // Security gate first (mode-level decision), then the approval dialog.
+        if (gate) {
+          const result = await gate.enforce(
             toolName,
             inputParams,
             `MCP tool: ${tool.name} (${server.config.name})`
           );
-          if (!approved) {
+          if (result.blocked) {
             return {
-              content: [{ type: 'text', text: 'Tool call denied by user.' }],
+              content: [{ type: 'text', text: result.message || 'Tool call blocked by security.' }],
               details: {
                 server: server.config.name,
                 tool: tool.name,

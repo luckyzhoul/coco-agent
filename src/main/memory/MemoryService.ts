@@ -7,6 +7,7 @@ import { Bm25Index } from './Bm25Index';
 import { embeddingClient, cosineSimilarity } from './EmbeddingClient';
 import { buildCompileTool } from './compiler';
 import { recencyWeight, tierOrder, type MemoryTier } from './tiering';
+import { enforceToolGate } from '../security/enforceToolGate';
 
 export type { MemoryTier };
 
@@ -315,6 +316,17 @@ export class MemoryService {
           source: Type.Optional(Type.String({ description: 'Source of the memory (default: agent)' }))
         }),
         async execute(_id, params) {
+          const gateResult = await enforceToolGate(
+            'memory_add',
+            { content: params.content.slice(0, 200) },
+            '写入一条长期记忆'
+          );
+          if (gateResult.blocked) {
+            return {
+              content: [{ type: 'text', text: gateResult.message || '操作被安全层拦截。' }],
+              details: { denied: true } as Record<string, unknown>
+            };
+          }
           const entry = service.add(params.content, params.tags || [], params.source || 'agent');
           return {
             content: [
@@ -400,6 +412,17 @@ export class MemoryService {
           id: Type.String({ description: 'Memory entry ID to delete' })
         }),
         async execute(_id, params) {
+          const gateResult = await enforceToolGate(
+            'memory_delete',
+            { id: params.id },
+            `删除记忆条目 ${params.id}`
+          );
+          if (gateResult.blocked) {
+            return {
+              content: [{ type: 'text', text: gateResult.message || '操作被安全层拦截。' }],
+              details: { denied: true, deleted: false, id: params.id } as Record<string, unknown>
+            };
+          }
           const deleted = service.delete(params.id);
           return {
             content: [

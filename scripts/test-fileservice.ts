@@ -38,7 +38,7 @@ assert(
   builtinDefaultPath(HOME) === withDesktop || builtinDefaultPath(HOME) === path.join(HOME, 'CocoSpace'),
   'default space is Desktop/CocoSpace when Desktop exists, else home/CocoSpace'
 );
-assert(builtinDefaultPath('/nonexistent-home-xyz') === '/nonexistent-home-xyz/CocoSpace',
+assert(builtinDefaultPath('/nonexistent-home-xyz') === path.join('/nonexistent-home-xyz', 'CocoSpace'),
   'missing Desktop degrades to <home>/CocoSpace');
 
 // --- containment: what FileService relies on ---

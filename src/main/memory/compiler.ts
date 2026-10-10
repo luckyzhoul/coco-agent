@@ -2,6 +2,7 @@ import { Type } from '@sinclair/typebox';
 import { defineTool } from '@earendil-works/pi-coding-agent';
 import { modelManager } from '../models/ModelManager';
 import { chatComplete } from '../models/chatClient';
+import { enforceToolGate } from '../security/enforceToolGate';
 import type { MemoryService } from './MemoryService';
 
 const COMPILE_PROMPT = `You are consolidating an agent's memory.
@@ -46,6 +47,18 @@ export function buildCompileTool(service: MemoryService) {
       )
     }),
     async execute(_id, params) {
+      const gateResult = await enforceToolGate(
+        'memory_compile',
+        {},
+        '将短期记忆蒸馏为长期记忆（会删除被合并的条目）'
+      );
+      if (gateResult.blocked) {
+        return {
+          content: [{ type: 'text', text: gateResult.message || '操作被安全层拦截。' }],
+          details: { compiled: 0, denied: true } as Record<string, unknown>
+        };
+      }
+
       const limit = Math.min(Math.max(1, params.limit ?? DEFAULT_BATCH), MAX_BATCH);
 
       const batch = service.listByTier('recent', limit);

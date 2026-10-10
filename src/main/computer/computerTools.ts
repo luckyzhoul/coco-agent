@@ -2,25 +2,28 @@ import { Type } from '@sinclair/typebox';
 import { defineTool } from '@earendil-works/pi-coding-agent';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import { computerService } from './ComputerService';
+import type { ToolGate } from '../security/toolGate';
 
-interface ApprovalGate {
-  requireApproval: (
-    tool: string,
-    input: Record<string, unknown>,
-    desc: string
-  ) => Promise<boolean>;
+/** Run the tool through the security gate; returns the block message or null. */
+async function checkGate(
+  gate: ToolGate | undefined,
+  tool: string,
+  input: Record<string, unknown>,
+  desc: string
+): Promise<string | null> {
+  if (!gate) return null;
+  const result = await gate.enforce(tool, input, desc);
+  return result.blocked ? result.message || '操作被安全层拦截。' : null;
 }
 
-export function buildComputerTools(approvalManager?: ApprovalGate): ToolDefinition[] {
-  const gate = async (
-    tool: string,
-    input: Record<string, unknown>,
-    desc: string
-  ): Promise<boolean> => {
-    if (!approvalManager) return true;
-    return approvalManager.requireApproval(tool, input, desc);
+function deniedResult(message: string) {
+  return {
+    content: [{ type: 'text' as const, text: message }],
+    details: { denied: true } as Record<string, unknown>
   };
+}
 
+export function buildComputerTools(gate?: ToolGate): ToolDefinition[] {
   return [
     defineTool({
       name: 'computer_screenshot',
@@ -29,6 +32,8 @@ export function buildComputerTools(approvalManager?: ApprovalGate): ToolDefiniti
         'Capture a screenshot of the entire desktop screen. Use this to see what is currently on screen before interacting with desktop applications.',
       parameters: Type.Object({}),
       async execute() {
+        const blocked = await checkGate(gate, 'computer_screenshot', {}, 'Capture a desktop screenshot');
+        if (blocked) return deniedResult(blocked);
         const info = computerService.getScreenInfo();
         const base64 = await computerService.screenshot();
         return {
@@ -50,6 +55,8 @@ export function buildComputerTools(approvalManager?: ApprovalGate): ToolDefiniti
       description: 'List currently open desktop windows with their titles.',
       parameters: Type.Object({}),
       async execute() {
+        const blocked = await checkGate(gate, 'computer_list_windows', {}, 'List open desktop windows');
+        if (blocked) return deniedResult(blocked);
         const windows = await computerService.listWindows();
         if (windows.length === 0) {
           return {
@@ -77,17 +84,13 @@ export function buildComputerTools(approvalManager?: ApprovalGate): ToolDefiniti
         y: Type.Number({ description: 'Y coordinate in screen pixels' })
       }),
       async execute(_id, params) {
-        const approved = await gate(
+        const blocked = await checkGate(
+          gate,
           'computer_click',
           { x: params.x, y: params.y },
           `Click the mouse at screen position (${params.x}, ${params.y})`
         );
-        if (!approved) {
-          return {
-            content: [{ type: 'text', text: 'Click denied by user.' }],
-            details: { denied: true } as Record<string, unknown>
-          };
-        }
+        if (blocked) return deniedResult(blocked);
         await computerService.click(params.x, params.y);
         const details: Record<string, unknown> = { denied: false, x: params.x, y: params.y };
         return {
@@ -105,17 +108,13 @@ export function buildComputerTools(approvalManager?: ApprovalGate): ToolDefiniti
         text: Type.String({ description: 'The text to type' })
       }),
       async execute(_id, params) {
-        const approved = await gate(
+        const blocked = await checkGate(
+          gate,
           'computer_type',
           { text: params.text },
           `Type "${params.text}" using the keyboard`
         );
-        if (!approved) {
-          return {
-            content: [{ type: 'text', text: 'Typing denied by user.' }],
-            details: { denied: true } as Record<string, unknown>
-          };
-        }
+        if (blocked) return deniedResult(blocked);
         await computerService.type(params.text);
         const details: Record<string, unknown> = { denied: false, length: params.text.length };
         return {
@@ -134,17 +133,13 @@ export function buildComputerTools(approvalManager?: ApprovalGate): ToolDefiniti
         key: Type.String({ description: 'Key or key combination to press' })
       }),
       async execute(_id, params) {
-        const approved = await gate(
+        const blocked = await checkGate(
+          gate,
           'computer_key',
           { key: params.key },
           `Press the key combination "${params.key}"`
         );
-        if (!approved) {
-          return {
-            content: [{ type: 'text', text: 'Key press denied by user.' }],
-            details: { denied: true } as Record<string, unknown>
-          };
-        }
+        if (blocked) return deniedResult(blocked);
         await computerService.key(params.key);
         const details: Record<string, unknown> = { denied: false, key: params.key };
         return {

@@ -94,7 +94,7 @@ export function ToolApprovalModal() {
             onClick={handleApproveAll}
             className="rounded-md bg-primary px-4 py-2 text-[13px] text-primary-foreground transition-opacity hover:opacity-90"
           >
-            始终允许此工具
+            本会话始终允许
           </button>
         </div>
 

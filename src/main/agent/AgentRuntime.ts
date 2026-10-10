@@ -19,6 +19,7 @@ import { guardFileWrite, guardedBashOperations, guardedPowerShellOperations } fr
 import { workspaceManager } from '../workspace/WorkspaceManager';
 import { mcpManager } from '../mcp/McpManager';
 import { buildMcpTools } from '../mcp/McpToolBridge';
+import { toolGate } from '../security/enforceToolGate';
 import { memoryService } from '../memory/MemoryService';
 import { approvalManager } from '../approval/ApprovalManager';
 import { settingsManager } from '../settings/SettingsManager';
@@ -445,8 +446,8 @@ export class AgentRuntime {
     });
     const mcpTools = await this.loadMcpTools();
     const memoryTools = memoryService.buildTools();
-    const browserTools = buildBrowserTools(approvalManager);
-    const computerTools = buildComputerTools(approvalManager);
+    const browserTools = buildBrowserTools(toolGate);
+    const computerTools = buildComputerTools(toolGate);
 
     return [
       ...codingTools,
@@ -474,7 +475,7 @@ export class AgentRuntime {
 
         if (server) {
           const mcpTools = server.getTools();
-          const piTools = buildMcpTools(server, config.id, mcpTools, approvalManager);
+          const piTools = buildMcpTools(server, config.id, mcpTools, toolGate);
           tools.push(...piTools);
         }
       } catch (err) {
@@ -539,6 +540,7 @@ export class AgentRuntime {
     this.activeSessionId = sessionId;
     this.messageCount = 0;
     this.resetTurnState();
+    approvalManager.resetApprovals();
 
     this.unsubscriber = session.subscribe((event: AgentSessionEvent) => {
       this.handleSessionEvent(event);
@@ -643,6 +645,7 @@ export class AgentRuntime {
     this.activeSessionId = sessionId;
     this.messageCount = meta.messageCount;
     this.resetTurnState();
+    approvalManager.resetApprovals();
 
     this.unsubscriber = session.subscribe((event: AgentSessionEvent) => {
       this.handleSessionEvent(event);

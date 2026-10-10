@@ -1,30 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { AuthorizedDir, SecurityLevel } from '@shared/types';
-import { useSettingsStore } from '../../stores/useSettingsStore';
 import { CheckIcon } from '../layout/icons';
 import { SecurityModeIcon, SECURITY_MODE_STYLES } from '../security/modeIcons';
+import { SECURITY_MODES } from '../security/securityModes';
+import { useSecurityStore } from '../../stores/useSecurityStore';
 import { ArchiveManager } from './ArchiveManager';
-
-const LEVEL_INFO: Record<SecurityLevel, { label: string; detail: string }> = {
-  auto: {
-    label: '自动审核（推荐）',
-    detail:
-      '平时可只读访问系统普通文件；项目空间、授权目录和 CocoAgent 数据目录内可自由写入，越界写入与 shell 命令会先征求你的批准。'
-  },
-  full: {
-    label: '完整权限',
-    detail: '不限制路径，不弹出确认。Agent 的权限完全由它自己判断。'
-  },
-  ask: {
-    label: '操作前询问',
-    detail: '每次写入、删除或执行命令都会先弹窗确认，批准才会执行。'
-  },
-  readonly: {
-    label: '只读模式',
-    detail:
-      'Agent 完全不会获得写入、编辑或 shell 工具 — 它根本无法修改文件。'
-  }
-};
 
 function AuthorizedDirsManager() {
   const [dirs, setDirs] = useState<AuthorizedDir[]>([]);
@@ -126,30 +106,21 @@ function AuthorizedDirsManager() {
 }
 
 export function SecuritySettings() {
-  const [level, setLevel] = useState<SecurityLevel>('auto');
-  const [levels, setLevels] = useState<SecurityLevel[]>(['auto', 'full', 'ask', 'readonly']);
-  const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
+  const level = useSecurityStore((s) => s.level);
+  const workspaceRoot = useSecurityStore((s) => s.workspaceRoot);
+  const loadSecurity = useSecurityStore((s) => s.load);
+  const selectLevel = useSecurityStore((s) => s.select);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    window.electronAPI.security
-      .get()
-      .then((s) => {
-        setLevel(s.level);
-        setLevels(s.levels);
-        setWorkspaceRoot(s.workspaceRoot);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, []);
+    loadSecurity().catch((err) => setError(err instanceof Error ? err.message : String(err)));
+  }, [loadSecurity]);
 
   const handleSelect = async (next: SecurityLevel) => {
     setError(null);
     try {
-      const applied = await window.electronAPI.security.setLevel(next);
-      setLevel(applied);
-      // Refresh the shared settings so the space panel reflects the new level.
-      await useSettingsStore.getState().loadSettings();
+      await selectLevel(next);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -173,13 +144,12 @@ export function SecuritySettings() {
       )}
 
       <div className="space-y-2">
-        {levels.map((lvl) => {
-          const info = LEVEL_INFO[lvl];
-          const active = lvl === level;
+        {SECURITY_MODES.map((mode) => {
+          const active = mode.value === level;
           return (
             <button
-              key={lvl}
-              onClick={() => handleSelect(lvl)}
+              key={mode.value}
+              onClick={() => handleSelect(mode.value)}
               className={`w-full text-left p-4 rounded-lg border transition-colors ${
                 active
                   ? 'border-primary/50 bg-primary/5'
@@ -188,14 +158,17 @@ export function SecuritySettings() {
             >
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-sm font-medium">
-                  <span className={SECURITY_MODE_STYLES[lvl]}>
-                    <SecurityModeIcon mode={lvl} className="w-4 h-4" />
+                  <span className={SECURITY_MODE_STYLES[mode.value]}>
+                    <SecurityModeIcon mode={mode.value} className="w-4 h-4" />
                   </span>
-                  {info.label}
+                  {mode.label}
+                  {mode.recommended && (
+                    <span className="text-xs font-normal text-primary">（推荐）</span>
+                  )}
                 </span>
                 {active && <span className="text-xs text-primary">当前</span>}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{info.detail}</p>
+              <p className="text-xs text-muted-foreground mt-1">{mode.detail}</p>
             </button>
           );
         })}
@@ -214,7 +187,7 @@ export function SecuritySettings() {
           「自动审核」下，越界写入与 shell 命令会弹窗征求批准；批准一次后可在会话内免重复确认。
         </div>
         <div>
-          shell 命令无法逐路径审查，除「完整权限」外都会先请求批准。操作系统级沙箱尚未实现。
+          shell 命令按启发式分级：只读与项目内开发命令（构建、测试）直接执行，破坏性、网络或未知命令会先请求批准。操作系统级沙箱尚未实现。
         </div>
       </div>
 

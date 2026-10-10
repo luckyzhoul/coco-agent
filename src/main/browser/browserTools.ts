@@ -2,6 +2,7 @@ import { Type } from '@sinclair/typebox';
 import { defineTool } from '@earendil-works/pi-coding-agent';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import { browserService, type BrowserSnapshot } from './BrowserService';
+import type { ToolGate } from '../security/toolGate';
 
 function formatSnapshot(snap: BrowserSnapshot): string {
   const lines: string[] = [];
@@ -28,9 +29,26 @@ function formatSnapshot(snap: BrowserSnapshot): string {
   return lines.join('\n');
 }
 
-export function buildBrowserTools(approvalManager?: {
-  requireApproval: (tool: string, input: Record<string, unknown>, desc: string) => Promise<boolean>;
-}): ToolDefinition[] {
+/** Run the tool through the security gate; returns the block message or null. */
+async function checkGate(
+  gate: ToolGate | undefined,
+  tool: string,
+  input: Record<string, unknown>,
+  desc: string
+): Promise<string | null> {
+  if (!gate) return null;
+  const result = await gate.enforce(tool, input, desc);
+  return result.blocked ? result.message || '操作被安全层拦截。' : null;
+}
+
+function deniedResult(message: string) {
+  return {
+    content: [{ type: 'text' as const, text: message }],
+    details: { denied: true } as Record<string, unknown>
+  };
+}
+
+export function buildBrowserTools(gate?: ToolGate): ToolDefinition[] {
   return [
     defineTool({
       name: 'browser_open',
@@ -41,6 +59,8 @@ export function buildBrowserTools(approvalManager?: {
         url: Type.String({ description: 'The URL to navigate to (https:// is added if missing)' })
       }),
       async execute(_id, params) {
+        const blocked = await checkGate(gate, 'browser_open', params, `Open ${params.url} in the agent browser`);
+        if (blocked) return deniedResult(blocked);
         const snap = await browserService.open(params.url);
         return {
           content: [{ type: 'text', text: formatSnapshot(snap) }],
@@ -56,6 +76,8 @@ export function buildBrowserTools(approvalManager?: {
         'Re-read the current page structure and text. Use after a page changes dynamically.',
       parameters: Type.Object({}),
       async execute() {
+        const blocked = await checkGate(gate, 'browser_snapshot', {}, 'Re-read the current page');
+        if (blocked) return deniedResult(blocked);
         const snap = await browserService.snapshot();
         return {
           content: [{ type: 'text', text: formatSnapshot(snap) }],
@@ -73,19 +95,13 @@ export function buildBrowserTools(approvalManager?: {
         index: Type.Number({ description: 'Element index from the latest snapshot' })
       }),
       async execute(_id, params) {
-        if (approvalManager) {
-          const approved = await approvalManager.requireApproval(
-            'browser_click',
-            { index: params.index },
-            `Click element [${params.index}] on ${browserService.getUrl() || 'page'}`
-          );
-          if (!approved) {
-            return {
-              content: [{ type: 'text', text: 'Click denied by user.' }],
-              details: { denied: true } as Record<string, unknown>
-            };
-          }
-        }
+        const blocked = await checkGate(
+          gate,
+          'browser_click',
+          { index: params.index },
+          `Click element [${params.index}] on ${browserService.getUrl() || 'page'}`
+        );
+        if (blocked) return deniedResult(blocked);
         const snap = await browserService.click(params.index);
         const details: Record<string, unknown> = { denied: false, url: snap.url, elementCount: snap.elements.length };
         return {
@@ -105,19 +121,13 @@ export function buildBrowserTools(approvalManager?: {
         value: Type.String({ description: 'Text to enter' })
       }),
       async execute(_id, params) {
-        if (approvalManager) {
-          const approved = await approvalManager.requireApproval(
-            'browser_fill',
-            { index: params.index, value: params.value },
-            `Type "${params.value}" into element [${params.index}]`
-          );
-          if (!approved) {
-            return {
-              content: [{ type: 'text', text: 'Fill denied by user.' }],
-              details: { denied: true } as Record<string, unknown>
-            };
-          }
-        }
+        const blocked = await checkGate(
+          gate,
+          'browser_fill',
+          { index: params.index, value: params.value },
+          `Type "${params.value}" into element [${params.index}]`
+        );
+        if (blocked) return deniedResult(blocked);
         const snap = await browserService.fill(params.index, params.value);
         const details: Record<string, unknown> = { denied: false, url: snap.url, elementCount: snap.elements.length };
         return {
@@ -135,6 +145,8 @@ export function buildBrowserTools(approvalManager?: {
       description: 'Get the full visible text of the current page (up to 6000 characters).',
       parameters: Type.Object({}),
       async execute() {
+        const blocked = await checkGate(gate, 'browser_get_text', {}, 'Read the current page text');
+        if (blocked) return deniedResult(blocked);
         const text = await browserService.getText();
         return {
           content: [{ type: 'text', text: text.slice(0, 6000) }],
@@ -149,6 +161,8 @@ export function buildBrowserTools(approvalManager?: {
       description: 'Capture a screenshot of the current page as a PNG image.',
       parameters: Type.Object({}),
       async execute() {
+        const blocked = await checkGate(gate, 'browser_screenshot', {}, 'Capture a screenshot of the current page');
+        if (blocked) return deniedResult(blocked);
         const base64 = await browserService.screenshot();
         return {
           content: [
@@ -166,6 +180,8 @@ export function buildBrowserTools(approvalManager?: {
       description: 'Close the agent-controlled browser window and free resources.',
       parameters: Type.Object({}),
       async execute() {
+        const blocked = await checkGate(gate, 'browser_close', {}, 'Close the agent browser');
+        if (blocked) return deniedResult(blocked);
         await browserService.close();
         return {
           content: [{ type: 'text', text: 'Browser closed.' }],

@@ -48,6 +48,16 @@ export class ApprovalManager {
     this.mainWindow = window;
   }
 
+  /**
+   * Forget per-session approvals ("始终允许" grants). Called on session
+   * switch/creation so an approve-all can never outlive the conversation it
+   * was granted in — previously these grants accumulated for the whole
+   * process lifetime, effectively unguarding the tool.
+   */
+  resetApprovals(): void {
+    this.approvedTools.clear();
+  }
+
   setAutoApproveAll(value: boolean): void {
     this.autoApproveAll = value;
   }

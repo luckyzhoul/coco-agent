@@ -4,6 +4,7 @@ import { COCO_HOME } from '../paths';
 import { approvalManager } from '../approval/ApprovalManager';
 import { pathGuard } from './PathGuard';
 import { decide } from './pathPolicy';
+import { classifyShellCommand } from './shellPolicy';
 
 /**
  * Call-time write gate shared by the guarded Pi tool operations.
@@ -16,9 +17,10 @@ import { decide } from './pathPolicy';
  *
  * Mode semantics (see pathPolicy.decide):
  * - full:     everything passes untouched.
- * - auto:     in-zone writes pass; cross-boundary writes and ALL shell
- *             commands are held for user approval (bash cannot be
- *             path-checked, so approval is the only honest gate).
+ * - auto:     in-zone writes pass; cross-boundary writes prompt. Shell
+ *             commands are tiered by security/shellPolicy: read-only and
+ *             in-project dev commands pass (long unattended runs), the rest
+ *             prompts.
  * - ask:      every write / shell command is held for approval; an approval
  *             IS the grant, so the user can allow anything.
  * - readonly: denied outright — tools stay assembled (stable prompt cache),
@@ -73,7 +75,7 @@ function guardShellCommand(toolName: 'bash' | 'powershell', local: BashOperation
       if (level === 'readonly') {
         throw new Error('当前是只读模式，不允许执行 shell 命令。');
       }
-      if (level !== 'full') {
+      if (level === 'ask') {
         const approved = await approvalManager.requireApproval(
           toolName,
           { command: cmd },
@@ -81,6 +83,27 @@ function guardShellCommand(toolName: 'bash' | 'powershell', local: BashOperation
         );
         if (!approved) {
           throw new Error(`用户拒绝了本次命令执行：${cmd}`);
+        }
+      } else if (level === 'auto') {
+        // Heuristic tiering (security/shellPolicy): read-only and in-project
+        // dev commands pass so unattended runs proceed; destructive, network,
+        // out-of-zone or unknown commands prompt. May over-prompt, never
+        // over-allow.
+        const decision = classifyShellCommand(
+          cmd,
+          pathGuard.getWorkspaceRoot(),
+          COCO_HOME,
+          pathGuard.listAuthorized()
+        );
+        if (decision.action === 'prompt') {
+          const approved = await approvalManager.requireApproval(
+            toolName,
+            { command: cmd },
+            `${decision.reason || '命令需要确认'}\n命令：${cmd}`
+          );
+          if (!approved) {
+            throw new Error(`用户拒绝了本次命令执行：${cmd}`);
+          }
         }
       }
       return local.exec(cmd, cwd, options);
