@@ -4,6 +4,7 @@ import { useChatStore } from '../../stores/useChatStore';
 import { useSessionStore } from '../../stores/useSessionStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import type { ModelProvider, Attachment, SecurityLevel, SlashCommandInfo } from '@shared/types';
+import { SecurityModeIcon, SECURITY_MODE_STYLES } from '../security/modeIcons';
 
 const providerLabels: Record<ModelProvider, string> = {
   'openai-compatible': 'OpenAI 兼容',
@@ -21,9 +22,10 @@ const THINKING_OPTIONS: { value: ThinkingLevel; label: string; hint: string }[] 
 ];
 
 const SECURITY_OPTIONS: { value: SecurityLevel; label: string; hint: string }[] = [
-  { value: 'readonly', label: '只读', hint: '只能读取文件' },
-  { value: 'workspace', label: '项目空间', hint: '可写工作目录' },
-  { value: 'full', label: '完全访问', hint: '无路径限制' }
+  { value: 'auto', label: '自动审核', hint: '空间内可写，越界需批准' },
+  { value: 'full', label: '完整权限', hint: '无限制' },
+  { value: 'ask', label: '操作前询问', hint: '每次操作先确认' },
+  { value: 'readonly', label: '只读模式', hint: '禁止写入' }
 ];
 
 function normalizeThinkingLevel(raw: string): ThinkingLevel {
@@ -41,7 +43,7 @@ export function ChatInput() {
   const [showCommandPicker, setShowCommandPicker] = useState(false);
   const [commandHighlight, setCommandHighlight] = useState(0);
   const [commands, setCommands] = useState<SlashCommandInfo[]>([]);
-  const [securityLevel, setSecurityLevel] = useState<SecurityLevel>('workspace');
+  const [securityLevel, setSecurityLevel] = useState<SecurityLevel>('auto');
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -152,7 +154,7 @@ export function ChatInput() {
       const applied = await window.electronAPI.security.setLevel(level);
       setSecurityLevel(applied);
       await loadSettings();
-      addSystemMessage('安全级别已切换，将应用于新对话');
+      addSystemMessage('安全模式已切换，当前对话立即生效');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -478,45 +480,45 @@ export function ChatInput() {
                 )}
               </div>
 
-              {/* Security level button */}
+              {/* Security mode pill — shows the selected mode, click to switch */}
               <div className="relative" ref={securityPickerRef}>
                 <button
                   onClick={() => setShowSecurityPicker(!showSecurityPicker)}
-                  className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
-                    securityLevel === 'readonly'
-                      ? 'text-emerald-500 hover:bg-emerald-500/10'
-                      : securityLevel === 'full'
-                      ? 'text-amber-500 hover:bg-amber-500/10'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  className={`h-8 px-2 flex items-center gap-1 rounded-lg text-xs transition-colors hover:bg-accent ${
+                    SECURITY_MODE_STYLES[securityLevel]
                   }`}
-                  title={`安全模式：${currentSecurity?.label || ''}`}
+                  title={`安全模式：${currentSecurity?.label || ''}（点击切换，当前对话立即生效）`}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" strokeLinejoin="round" />
-                  </svg>
+                  <SecurityModeIcon mode={securityLevel} className="w-3.5 h-3.5" />
+                  <span>{currentSecurity?.label || '自动审核'}</span>
                 </button>
 
                 {showSecurityPicker && (
-                  <div className="absolute bottom-full left-0 mb-1 z-50 min-w-[180px] bg-card border border-border/60 rounded-xl shadow-lifted py-1">
+                  <div className="absolute bottom-full left-0 mb-1 z-50 min-w-[210px] bg-card border border-border/60 rounded-xl shadow-lifted py-1">
                     <div className="px-3 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                      安全级别
+                      安全模式
                     </div>
                     {SECURITY_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
                         onClick={() => handleSelectSecurity(opt.value)}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs transition-colors ${
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
                           opt.value === securityLevel
                             ? 'bg-accent/60 text-foreground'
                             : 'text-foreground/80 hover:bg-accent/40'
                         }`}
                       >
+                        <span className={`shrink-0 ${SECURITY_MODE_STYLES[opt.value]}`}>
+                          <SecurityModeIcon mode={opt.value} className="w-3.5 h-3.5" />
+                        </span>
                         <span className="font-medium">{opt.label}</span>
-                        <span className="text-[10px] text-muted-foreground">{opt.hint}</span>
+                        <span className="text-[10px] text-muted-foreground ml-auto text-right">
+                          {opt.hint}
+                        </span>
                       </button>
                     ))}
                     <div className="px-3 py-1.5 border-t border-border/30 text-[10px] text-muted-foreground">
-                      更改将在新对话生效
+                      切换对当前对话立即生效
                     </div>
                   </div>
                 )}

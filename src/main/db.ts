@@ -71,6 +71,13 @@ CREATE TABLE IF NOT EXISTS agent_skills (
   PRIMARY KEY (agent_id, skill_name),
   FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS authorized_dirs (
+  path       TEXT PRIMARY KEY,
+  can_write  INTEGER NOT NULL DEFAULT 1,
+  label      TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
 `;
 
 let db: DatabaseSync | null = null;

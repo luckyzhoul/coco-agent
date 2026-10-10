@@ -59,7 +59,7 @@ pnpm repair:electron  # pnpm 重链可能抹掉 electron 二进制，此脚本�
 
 7. **错误必须浮到 UI。** `message_end` 的 `stopReason: 'error'/'aborted'` 要手动检查并 `emit(AGENT_EVENT_ERROR, ...)`，否则用户只看到空白。工具审批走 `approval/ApprovalManager`（危险工具弹窗）。
 
-8. **安全级别是「不装配工具」而非「拦截调用」**：Pi 的 read/write/edit/bash 在 SDK 内部执行，应用层包不住。`readonly` 级别通过 `createAgentSession({ excludeTools })` 直接不交给模型写工具（`security/pathPolicy.ts` 的 `excludedToolsFor`）。已知边界：`workspace` 级别下 bash 仍可越界，OS 级沙盒未实现（UI 有标注）。
+8. **安全模型是四档模式（`auto` 默认 / `full` / `ask` / `readonly`）+ 四分区路径**（workspace / authorized 授权目录 / coco-home / outside），全部**调用时执行**：工具在所有档位下都保持装配（prompt cache 稳定），Pi 的 write/edit/bash 经 `createCodingTools(cwd, {write/edit/bash/powershell})` 的可插拔 `operations` 注入守卫（`security/writeGuard.ts`），守卫每次调用实时读档位——**切档对当前会话立即生效，不重建会话**。语义：auto 空间内静默放行、越界和 shell 弹窗；ask 全部弹窗（批准即授权）；readonly 一律硬拒绝并返回解释（不弹窗）。新增写入路径（含 mkdir）必须过 `guardFileWrite`。授权目录持久化在 db 的 `authorized_dirs` 表，经 `PathGuard.listAuthorized()` 参与判定；旧档名 `workspace` 由 `normalizeSecurityLevel` 归一为 `auto`。OS 级沙盒仍未实现（UI 有标注）。
 
 9. **记忆按 Agent 隔离**：`MemoryService.load(agentId)` 在切 Agent/切会话时必须重新调用。tier 加权只在一处应用（`applyTierWeights`），`searchLexical` 返回原始分——混合检索里别二次加权。`memory_compile` 取**最旧的** recent（老化淘汰语义）。
 
@@ -69,7 +69,7 @@ pnpm repair:electron  # pnpm 重链可能抹掉 electron 二进制，此脚本�
 
 12. **项目空间与会话绑定**：默认空间 `~/Desktop/CocoSpace`（settings 的 `defaultWorkspacePath`，`~` 会展开；无 Desktop 时降级 `~/CocoSpace`），`workspaceManager.init()` 在窗口创建前跑，按 `lastWorkspacePath` 恢复。**`sessions.workspace_path` 是会话绑定的唯一真相**：新建会话取「当前空间」（选择器在**新建对话页**，不在侧边栏），**切会话必须跟着切空间**——`switchSession` 会同步 `workspaceManager.setCurrent`，并经 `AGENT_SWITCH_SESSION` 把 session meta **return 给渲染层**（漏 return 会导致面板不跟随，这是「切对话没换目录」事故的根因）。右侧面板切空间走 `agent.rebindWorkspace` 重绑当前会话。面板展示的空间与 Pi 的 cwd 必须始终一致。
 
-13. **右侧文件面板的读写走 `workspace/FileService.ts`**，不是直接 fs：先 `path.resolve` 到面板根，`realpath` 后校验仍在根内（防 symlink 逃逸），再交给 `pathPolicy.decide` 判权限。注意 `decide` 用的是**面板根**而非 `pathGuard.getWorkspaceRoot()`——后者是会话根，无会话时为空，会把空间内写入误判成越界。上限 2 MB、二进制识别、保存前 mtime 比对。
+13. **右侧文件面板的读写走 `workspace/FileService.ts`**，不是直接 fs：先 `path.resolve` 到面板根，`realpath` 后校验仍在根内（防 symlink 逃逸）。面板写入是用户的显式操作且已被 `resolveInside` 限制在空间根内，所以只被 `readonly` 档禁止——Agent 侧的 ask/auto 弹窗流程在 `security/writeGuard.ts`，别把两套语义混在一起。上限 2 MB、二进制识别、保存前 mtime 比对。
 
 14. **主题是 CSS 变量**：`styles/globals.css` 的 `:root`（暖米纸亮色，默认）与 `.dark` 两套 HSL 变量，`tailwind.config.js` 全部映射为 `hsl(var(--x) / <alpha-value>)`。改配色只动 globals.css，别在组件里写死 `text-red-400` 这类暗色调色值。主题 class 由 `App.tsx` 按 `settings.theme` 切；`index.html` 不要写死 `class="dark"`。界面文案一律中文。
 

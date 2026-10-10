@@ -105,6 +105,11 @@ export const APP_OPEN_HOME = 'app:openHome';
 export const SECURITY_GET = 'security:get';
 export const SECURITY_SET_LEVEL = 'security:setLevel';
 export const SECURITY_CHECK = 'security:check';
+export const SECURITY_LIST_AUTHORIZED = 'security:listAuthorized';
+export const SECURITY_PICK_DIRECTORY = 'security:pickDirectory';
+export const SECURITY_ADD_AUTHORIZED = 'security:addAuthorized';
+export const SECURITY_REMOVE_AUTHORIZED = 'security:removeAuthorized';
+export const SECURITY_SET_AUTHORIZED_CAN_WRITE = 'security:setAuthorizedCanWrite';
 
 // Agent channels
 export const AGENTS_LIST = 'agents:list';

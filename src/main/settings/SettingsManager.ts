@@ -1,10 +1,11 @@
 import { getDb } from '../db';
+import { normalizeSecurityLevel } from '../security/pathPolicy';
 import type { AppSettings, ModelConfig, MCPConfig } from '../../shared/types';
 
 const SETTINGS_KEY = 'app';
 
 const DEFAULT_SETTINGS: AppSettings = {
-  securityLevel: 'workspace',
+  securityLevel: 'auto',
   activeAgentId: null,
   defaultWorkspacePath: '~/Desktop/CocoSpace',
   lastWorkspacePath: '',
@@ -32,7 +33,10 @@ export class SettingsManager {
         .prepare('SELECT value FROM settings WHERE key = ?')
         .get(SETTINGS_KEY) as { value: string } | undefined;
       if (row?.value) {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(row.value) };
+        const merged = { ...DEFAULT_SETTINGS, ...JSON.parse(row.value) };
+        // Legacy 'workspace' level normalizes to 'auto'; no migration needed.
+        merged.securityLevel = normalizeSecurityLevel(merged.securityLevel);
+        return merged;
       }
     } catch {
       // Corrupted value, use defaults

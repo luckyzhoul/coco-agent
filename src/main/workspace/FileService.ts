@@ -3,8 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { FileEntry, FileReadResult, FileWriteResult } from '../../shared/types';
 import { pathGuard } from '../security/PathGuard';
-import { decide, isInside } from '../security/pathPolicy';
-import { COCO_HOME } from '../paths';
+import { isInside } from '../security/pathPolicy';
 import { workspaceManager } from './WorkspaceManager';
 import { looksBinary, realpathParent } from './spacePaths';
 
@@ -114,12 +113,12 @@ export class FileService {
   writeFile(input: string, content: string, expectedMtime?: number): FileWriteResult {
     const abs = this.resolveInside(input);
 
-    // Decide against the space the panel is actually browsing. PathGuard's
-    // own root is the *session's* root and is unset until a session exists,
-    // which would wrongly classify an in-space write as "outside".
-    const decision = decide(pathGuard.level, 'write', this.effectivePath(abs), this.rootDir(), COCO_HOME);
-    if (!decision.allowed) {
-      throw new Error(decision.reason || '当前安全级别不允许写入文件');
+    // Panel writes are the user's own explicit action and resolveInside has
+    // already confined the path to the space root; only readonly forbids
+    // them. Agent-side enforcement lives in security/writeGuard, which owns
+    // the ask/auto prompting flow.
+    if (pathGuard.level === 'readonly') {
+      throw new Error('当前是只读模式，不允许写入文件');
     }
 
     // Guard against silently clobbering an edit the agent made meanwhile.

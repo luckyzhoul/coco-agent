@@ -171,7 +171,19 @@ export interface SkillInfo {
   loaded: boolean;
 }
 
-export type SecurityLevel = 'readonly' | 'workspace' | 'full';
+/**
+ * Session permission modes (安全模式四档):
+ * readonly 只读模式 / ask 操作前询问 / auto 自动审核(默认) / full 完整权限.
+ * Legacy stored value 'workspace' is normalized to 'auto' on read.
+ */
+export type SecurityLevel = 'readonly' | 'ask' | 'auto' | 'full';
+
+/** A user-granted additional root directory (授权目录). */
+export interface AuthorizedDir {
+  path: string;
+  canWrite: boolean;
+  label?: string;
+}
 
 export interface AppSettings {
   // Security

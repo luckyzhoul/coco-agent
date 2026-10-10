@@ -101,6 +101,11 @@ import {
   SECURITY_GET,
   SECURITY_SET_LEVEL,
   SECURITY_CHECK,
+  SECURITY_LIST_AUTHORIZED,
+  SECURITY_PICK_DIRECTORY,
+  SECURITY_ADD_AUTHORIZED,
+  SECURITY_REMOVE_AUTHORIZED,
+  SECURITY_SET_AUTHORIZED_CAN_WRITE,
   AGENTS_CREATE,
   AGENTS_UPDATE,
   AGENTS_DELETE,
@@ -127,7 +132,8 @@ import {
 import type {
   ToolApprovalRequest,
   ToolApprovalDecision,
-  UpdateStatus
+  UpdateStatus,
+  AuthorizedDir
 } from '../shared/types';
 
 const electronAPI = {
@@ -374,7 +380,17 @@ const electronAPI = {
         allowed: boolean;
         zone: string;
         reason?: string;
-      }>
+      }>,
+    listAuthorized: () =>
+      ipcRenderer.invoke(SECURITY_LIST_AUTHORIZED) as Promise<AuthorizedDir[]>,
+    pickDirectory: () =>
+      ipcRenderer.invoke(SECURITY_PICK_DIRECTORY) as Promise<string | null>,
+    addAuthorized: (path: string, canWrite: boolean) =>
+      ipcRenderer.invoke(SECURITY_ADD_AUTHORIZED, path, canWrite) as Promise<AuthorizedDir[]>,
+    removeAuthorized: (path: string) =>
+      ipcRenderer.invoke(SECURITY_REMOVE_AUTHORIZED, path) as Promise<AuthorizedDir[]>,
+    setAuthorizedCanWrite: (path: string, canWrite: boolean) =>
+      ipcRenderer.invoke(SECURITY_SET_AUTHORIZED_CAN_WRITE, path, canWrite) as Promise<AuthorizedDir[]>
   },
   agents: {
     list: () => ipcRenderer.invoke(AGENTS_LIST) as Promise<AgentInfo[]>,

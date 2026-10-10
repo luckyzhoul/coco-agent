@@ -64,7 +64,7 @@ export function FileViewer() {
 
   // The level lives in settings, so changing it in Settings updates the
   // editor immediately instead of only on the next session.
-  const level = useSettingsStore((s) => s.settings?.securityLevel ?? 'workspace');
+  const level = useSettingsStore((s) => s.settings?.securityLevel ?? 'auto');
 
   const readOnly = level === 'readonly';
   const editable = !!tab && !tab.binary && !tab.tooLarge && !readOnly;

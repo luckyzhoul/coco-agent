@@ -15,7 +15,7 @@ import { providerIdFor, syncPiModelConfig } from '../models/PiModelConfig';
 import { agentManager } from '../agents/AgentManager';
 import { agentSkillsDir, buildPersonaPrompt } from '../agents/persona';
 import { pathGuard } from '../security/PathGuard';
-import { excludedToolsFor } from '../security/pathPolicy';
+import { guardFileWrite, guardedBashOperations, guardedPowerShellOperations } from '../security/writeGuard';
 import { workspaceManager } from '../workspace/WorkspaceManager';
 import { mcpManager } from '../mcp/McpManager';
 import { buildMcpTools } from '../mcp/McpToolBridge';
@@ -410,7 +410,39 @@ export class AgentRuntime {
   }
 
   private async buildCustomTools(workspacePath: string): Promise<ToolDefinition[]> {
-    const codingTools = createCodingTools(workspacePath);
+    // Coding tools are created with guarded filesystem/shell operations (see
+    // security/writeGuard): the path policy is enforced at call time in every
+    // mode — including readonly, whose mutations simply fail with an
+    // explanatory error (tools stay assembled, which keeps the prompt cache
+    // stable and lets mode switches apply to the running session instantly).
+    const codingTools = createCodingTools(workspacePath, {
+      write: {
+        operations: {
+          writeFile: async (abs, content) => {
+            await guardFileWrite('write', { path: abs, content: `${content.slice(0, 120)}…` }, abs);
+            await fs.promises.writeFile(abs, content, 'utf8');
+          },
+          mkdir: async (dir) => {
+            await guardFileWrite('write', { path: dir }, dir, `Agent 请求创建目录：${dir}`);
+            await fs.promises.mkdir(dir, { recursive: true });
+          }
+        }
+      },
+      edit: {
+        operations: {
+          readFile: (abs) => fs.promises.readFile(abs),
+          writeFile: async (abs, content) => {
+            await guardFileWrite('edit', { path: abs }, abs);
+            await fs.promises.writeFile(abs, content, 'utf8');
+          },
+          access: async (abs) => {
+            await fs.promises.access(abs, fs.constants.W_OK);
+          }
+        }
+      },
+      bash: { operations: guardedBashOperations() },
+      powershell: { operations: guardedPowerShellOperations() }
+    });
     const mcpTools = await this.loadMcpTools();
     const memoryTools = memoryService.buildTools();
     const browserTools = buildBrowserTools(approvalManager);
@@ -495,7 +527,6 @@ export class AgentRuntime {
       cwd: workspacePath,
       agentDir: PI_RUNTIME_DIR,
       customTools: allCustomTools as any[],
-      excludeTools: this.securityExclusions(),
       sessionManager: SessionManager.inMemory(),
       settingsManager: piSettingsManager,
       resourceLoader,
@@ -543,17 +574,6 @@ export class AgentRuntime {
 
     await loader.reload();
     return loader;
-  }
-
-  /**
-   * Tools to withhold from the session at the current security level.
-   *
-   * This is the real enforcement of `readonly`: Pi runs its built-in file
-   * tools in-process, so rather than intercepting calls we never hand the
-   * model write/edit/bash in the first place.
-   */
-  private securityExclusions(): string[] {
-    return excludedToolsFor(pathGuard.level);
   }
 
   /** Rebuilds the Pi session for `sessionId`; returns the session's metadata
@@ -611,7 +631,6 @@ export class AgentRuntime {
       cwd: meta.workspacePath,
       agentDir: PI_RUNTIME_DIR,
       customTools: allCustomTools as any[],
-      excludeTools: this.securityExclusions(),
       sessionManager: SessionManager.inMemory(),
       settingsManager: piSettingsManager,
       resourceLoader,

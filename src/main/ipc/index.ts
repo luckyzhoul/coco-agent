@@ -80,6 +80,11 @@ import {
   APP_OPEN_HOME,
   AGENTS_LIST,
   SECURITY_GET,
+  SECURITY_LIST_AUTHORIZED,
+  SECURITY_PICK_DIRECTORY,
+  SECURITY_ADD_AUTHORIZED,
+  SECURITY_REMOVE_AUTHORIZED,
+  SECURITY_SET_AUTHORIZED_CAN_WRITE,
   SECURITY_SET_LEVEL,
   SECURITY_CHECK,
   AGENTS_CREATE,
@@ -407,13 +412,40 @@ export function registerIpcHandlers(
 
   ipcMain.handle(SECURITY_SET_LEVEL, (_e, level: SecurityLevel) => {
     pathGuard.setLevel(level);
-    // Takes effect on the next session creation; existing sessions keep
-    // their tool set until rebuilt.
+    // The write gate reads the level on every call, so this applies to the
+    // running session immediately — no rebuild needed.
     return pathGuard.level;
   });
 
   ipcMain.handle(SECURITY_CHECK, (_e, path: string, op: 'read' | 'write') => {
     return pathGuard.check(path, op);
+  });
+
+  // 授权目录 (user-granted additional roots)
+  ipcMain.handle(SECURITY_LIST_AUTHORIZED, () => {
+    return pathGuard.listAuthorized();
+  });
+
+  ipcMain.handle(SECURITY_PICK_DIRECTORY, async () => {
+    const win = getMainWindow();
+    const result = await dialog.showOpenDialog(win!, {
+      title: '选择要授权给 Agent 的目录',
+      properties: ['openDirectory']
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle(SECURITY_ADD_AUTHORIZED, (_e, path: string, canWrite: boolean) => {
+    return pathGuard.addAuthorized(path, canWrite);
+  });
+
+  ipcMain.handle(SECURITY_REMOVE_AUTHORIZED, (_e, path: string) => {
+    return pathGuard.removeAuthorized(path);
+  });
+
+  ipcMain.handle(SECURITY_SET_AUTHORIZED_CAN_WRITE, (_e, path: string, canWrite: boolean) => {
+    return pathGuard.setAuthorizedCanWrite(path, canWrite);
   });
 
   // Agent handlers
