@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSessionStore } from '../../stores/useSessionStore';
 import { useSpaceStore } from '../../stores/useSpaceStore';
 import { useUiStore } from '../../stores/useUiStore';
 import { FileBrowser } from './FileBrowser';
 import { FileViewer } from './FileViewer';
+import { SkillSection } from './SkillSection';
 import { SpaceFooter } from './SpaceFooter';
-import { ExternalIcon } from './icons';
+import { ExternalIcon, ZapIcon } from './icons';
 import { SidebarRightIcon, RefreshCwIcon } from '../layout/icons';
 
 export function SpacePanel() {
@@ -17,6 +18,9 @@ export function SpacePanel() {
   const tabs = useSpaceStore((s) => s.tabs);
   const refresh = useSpaceStore((s) => s.refresh);
   const switchSpace = useSpaceStore((s) => s.switchSpace);
+  // Project-skills list visibility; the header pill toggles it and the
+  // collapsed state takes no vertical space at all.
+  const [skillsOpen, setSkillsOpen] = useState(false);
 
   // The project space follows the session: whenever the bound workspace
   // changes (new session, session switch, manual switch) the panel re-roots.
@@ -42,10 +46,22 @@ export function SpacePanel() {
     <aside className="flex h-full w-full flex-col border-l border-border bg-panel">
       {/* Header */}
       <div className="shrink-0 border-b border-border px-3 pb-2 pt-3">
-        <div className="flex items-center gap-1">
+        <div className="relative flex items-center gap-1">
           <h2 className="title-serif rule-title flex-1 text-center text-[13px] text-foreground/85">
             项目空间
           </h2>
+          <button
+            onClick={() => setSkillsOpen(!skillsOpen)}
+            className={`absolute right-0 flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
+              skillsOpen
+                ? 'border-accent bg-accent text-accent-foreground'
+                : 'border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+            }`}
+            title="管理项目空间专属技能"
+          >
+            <ZapIcon className="h-3 w-3" />
+            项目技能
+          </button>
         </div>
 
         <div className="mt-2 flex items-center gap-1.5">
@@ -80,13 +96,18 @@ export function SpacePanel() {
         )}
       </div>
 
-      <FileBrowser />
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <FileBrowser />
 
-      {tabs.length > 0 && (
-        <div className="flex min-h-0 flex-1 flex-col border-t border-border">
-          <FileViewer />
-        </div>
-      )}
+        {tabs.length > 0 && (
+          <div className="flex min-h-0 flex-1 flex-col border-t border-border">
+            <FileViewer />
+          </div>
+        )}
+
+        {/* 项目技能悬浮卡片，覆盖文件区；状态栏仍可见 */}
+        {skillsOpen && <SkillSection onClose={() => setSkillsOpen(false)} />}
+      </div>
 
       <SpaceFooter />
     </aside>

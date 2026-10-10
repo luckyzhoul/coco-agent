@@ -2,11 +2,14 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { SkillInfo } from '../../shared/types';
 import { paths, ensureDir } from '../paths';
-
-interface SkillFrontmatter {
-  name?: string;
-  description?: string;
-}
+import { isInside } from '../security/pathPolicy';
+import {
+  assertSafeSkillName,
+  parseSkillFrontmatter,
+  projectSkillsDir,
+  resolveInsideWorkspace,
+  scanSkillsDir
+} from './projectSkills';
 
 export class SkillManager {
   private skills: SkillInfo[] = [];
@@ -30,7 +33,7 @@ export class SkillManager {
     }
 
     const content = fs.readFileSync(skillMd, 'utf-8');
-    const frontmatter = this.parseFrontmatter(content);
+    const frontmatter = parseSkillFrontmatter(content);
     const name = frontmatter.name || path.basename(sourceDir);
 
     const destDir = path.join(this.getSkillsDir(), name);
@@ -108,78 +111,99 @@ export class SkillManager {
 
   private loadAllSkills(): void {
     // Global skills: ${COCO_HOME}/skills
-    this.loadSkillsFromDir(paths.skillsDir, 'global');
+    this.skills = scanSkillsDir(paths.skillsDir, 'global');
 
     // Built-in skills (bundled with app)
     // For now, we don't have built-in skills, but the structure is here
   }
 
-  private loadSkillsFromDir(dir: string, source: SkillInfo['source']): void {
-    if (!fs.existsSync(dir)) return;
+  // ── Project-space (workspace-level) skills ─────────────────────────────
+  //
+  // These live at <space>/.coco/skills and apply to every agent while a
+  // session is bound to that space — they never go through the per-agent
+  // enable/disable registry. They are scanned live on each call so they
+  // always follow the app's current project space.
 
-    try {
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-
-        const skillPath = path.join(dir, entry.name);
-        const skillMdPath = path.join(skillPath, 'SKILL.md');
-
-        if (!fs.existsSync(skillMdPath)) continue;
-
-        try {
-          const content = fs.readFileSync(skillMdPath, 'utf-8');
-          const frontmatter = this.parseFrontmatter(content);
-
-          const skill: SkillInfo = {
-            name: frontmatter.name || entry.name,
-            description: frontmatter.description || '',
-            path: skillPath,
-            source,
-            loaded: true
-          };
-
-          // Avoid duplicates
-          if (!this.skills.some(s => s.name === skill.name)) {
-            this.skills.push(skill);
-          }
-        } catch {
-          // Skip invalid skills
-        }
-      }
-    } catch {
-      // Directory read failed, skip
-    }
+  /** List the current project space's own skills. */
+  listProject(workspacePath: string | undefined): SkillInfo[] {
+    if (!workspacePath) return [];
+    return scanSkillsDir(projectSkillsDir(workspacePath), 'project');
   }
 
-  private parseFrontmatter(content: string): SkillFrontmatter {
-    const frontmatter: SkillFrontmatter = {};
-
-    // Match YAML frontmatter between --- delimiters
-    const match = content.match(/^---\s*\n([\s\S]*?)\n---/);
-    if (!match) return frontmatter;
-
-    const yamlContent = match[1];
-    const lines = yamlContent.split('\n');
-
-    for (const line of lines) {
-      const colonIndex = line.indexOf(':');
-      if (colonIndex === -1) continue;
-
-      const key = line.slice(0, colonIndex).trim();
-      let value = line.slice(colonIndex + 1).trim();
-
-      // Remove quotes if present
-      if ((value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'"))) {
-        value = value.slice(1, -1);
+  getProjectContent(name: string, workspacePath: string | undefined): string | null {
+    const skill = this.listProject(workspacePath).find((s) => s.name === name);
+    if (!skill) return null;
+    try {
+      const skillMdPath = path.join(skill.path, 'SKILL.md');
+      if (fs.existsSync(skillMdPath)) {
+        return fs.readFileSync(skillMdPath, 'utf-8');
       }
+    } catch {
+      // Fall through
+    }
+    return null;
+  }
 
-      if (key === 'name') frontmatter.name = value;
-      if (key === 'description') frontmatter.description = value;
+  /**
+   * Install a skill (a directory containing SKILL.md) into the current
+   * project space's skills directory. An existing skill with the same name
+   * is replaced.
+   */
+  installToProject(sourceDir: string, workspacePath: string | undefined): SkillInfo {
+    if (!workspacePath) {
+      throw new Error('尚未选择项目空间');
     }
 
-    return frontmatter;
+    const skillMd = path.join(sourceDir, 'SKILL.md');
+    if (!fs.existsSync(skillMd)) {
+      throw new Error(`不是有效的技能：${sourceDir} 中没有 SKILL.md`);
+    }
+
+    const content = fs.readFileSync(skillMd, 'utf-8');
+    const frontmatter = parseSkillFrontmatter(content);
+    const name = frontmatter.name || path.basename(sourceDir);
+    assertSafeSkillName(name);
+
+    // The destination must stay inside the space root, even via symlinks.
+    const destDir = resolveInsideWorkspace(
+      workspacePath,
+      path.join(projectSkillsDir(workspacePath), name)
+    );
+
+    if (fs.existsSync(destDir)) {
+      fs.rmSync(destDir, { recursive: true, force: true });
+    }
+
+    this.copyDir(sourceDir, destDir);
+
+    return {
+      name,
+      description: frontmatter.description || '',
+      path: destDir,
+      source: 'project',
+      loaded: (frontmatter.description || '').trim() !== ''
+    };
+  }
+
+  /** Delete a skill from the current project space's skills directory. */
+  deleteProject(name: string, workspacePath: string | undefined): SkillInfo[] {
+    if (!workspacePath) {
+      throw new Error('尚未选择项目空间');
+    }
+
+    const root = projectSkillsDir(workspacePath);
+    const skill = this.listProject(workspacePath).find((s) => s.name === name);
+    if (!skill) {
+      throw new Error(`项目空间中未找到技能：${name}`);
+    }
+    // Defense in depth: the scan already produced a direct child of the
+    // skills dir, but never rm anything that resolves outside the space.
+    const target = resolveInsideWorkspace(workspacePath, skill.path);
+    if (!isInside(root, target)) {
+      throw new Error(`非法的技能路径：${name}`);
+    }
+    fs.rmSync(target, { recursive: true, force: true });
+    return this.listProject(workspacePath);
   }
 }
 

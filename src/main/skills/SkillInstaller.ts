@@ -55,8 +55,15 @@ function findSkillRoot(dir: string): string | null {
 }
 
 export class SkillInstaller {
+  /** Route a validated skill root to the global or project-space install. */
+  private installRoot(root: string, workspacePath?: string): SkillInfo {
+    return workspacePath
+      ? skillManager.installToProject(root, workspacePath)
+      : skillManager.install(root);
+  }
+
   /** Extract .zip / .tar.gz / .tgz using system tools, then install the skill inside. */
-  async installFromArchive(archivePath: string): Promise<SkillInfo> {
+  async installFromArchive(archivePath: string, workspacePath?: string): Promise<SkillInfo> {
     if (!fs.existsSync(archivePath)) {
       throw new Error(`Archive not found: ${archivePath}`);
     }
@@ -76,7 +83,7 @@ export class SkillInstaller {
       if (!root) {
         throw new Error('No SKILL.md found inside the archive.');
       }
-      return skillManager.install(root);
+      return this.installRoot(root, workspacePath);
     } finally {
       rmrf(work);
     }
@@ -108,7 +115,7 @@ export class SkillInstaller {
   }
 
   /** Clone a git repository and install the skill found inside. */
-  async installFromGit(url: string): Promise<SkillInfo> {
+  async installFromGit(url: string, workspacePath?: string): Promise<SkillInfo> {
     const work = tempDir('git');
     try {
       try {
@@ -127,14 +134,14 @@ export class SkillInstaller {
       if (!root) {
         throw new Error('No SKILL.md found in the repository.');
       }
-      return skillManager.install(root);
+      return this.installRoot(root, workspacePath);
     } finally {
       rmrf(work);
     }
   }
 
   /** Download a remote archive and install it. */
-  async installFromUrl(url: string): Promise<SkillInfo> {
+  async installFromUrl(url: string, workspacePath?: string): Promise<SkillInfo> {
     const work = tempDir('download');
     const isZip = url.toLowerCase().includes('.zip');
     const target = path.join(work, isZip ? 'skill.zip' : 'skill.tar.gz');
@@ -146,36 +153,36 @@ export class SkillInstaller {
       }
       const buffer = Buffer.from(await resp.arrayBuffer());
       fs.writeFileSync(target, buffer);
-      return await this.installFromArchive(target);
+      return await this.installFromArchive(target, workspacePath);
     } finally {
       rmrf(work);
     }
   }
 
-  /** Install from any supported source string. */
-  async installFromSource(source: string): Promise<SkillInfo> {
+  /** Install from any supported source string. Pass `workspacePath` to install into a project space. */
+  async installFromSource(source: string, workspacePath?: string): Promise<SkillInfo> {
     const trimmed = source.trim();
 
     if (/^https?:\/\//i.test(trimmed) && /\.(zip|tar\.gz|tgz|tar)$/i.test(trimmed)) {
-      return this.installFromUrl(trimmed);
+      return this.installFromUrl(trimmed, workspacePath);
     }
     if (/^git\+/i.test(trimmed)) {
-      return this.installFromGit(trimmed.replace(/^git\+/i, ''));
+      return this.installFromGit(trimmed.replace(/^git\+/i, ''), workspacePath);
     }
     if (/^(https?:\/\/|git@)/i.test(trimmed) && /\.git$/i.test(trimmed)) {
-      return this.installFromGit(trimmed);
+      return this.installFromGit(trimmed, workspacePath);
     }
     if (/^https?:\/\//i.test(trimmed)) {
       // GitHub-style repo URL without .git — treat as git.
-      return this.installFromGit(trimmed);
+      return this.installFromGit(trimmed, workspacePath);
     }
 
     const stat = fs.existsSync(trimmed) ? fs.statSync(trimmed) : null;
     if (stat?.isDirectory()) {
-      return skillManager.install(trimmed);
+      return this.installRoot(trimmed, workspacePath);
     }
     if (stat?.isFile()) {
-      return this.installFromArchive(trimmed);
+      return this.installFromArchive(trimmed, workspacePath);
     }
 
     throw new Error(`Unrecognized skill source: ${source}`);

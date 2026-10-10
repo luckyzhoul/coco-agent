@@ -90,6 +90,13 @@ export const SKILLS_INSTALL_FROM_SOURCE = 'skills:installFromSource';
 export const SKILLS_FETCH_CATALOG = 'skills:fetchCatalog';
 export const SKILLS_INSTALL_FROM_CATALOG = 'skills:installFromCatalog';
 
+// Project-space (workspace-level) skills, scoped to the app's current space
+export const SKILLS_LIST_PROJECT = 'skills:listProject';
+export const SKILLS_OPEN_PROJECT_DIR = 'skills:openProjectDir';
+export const SKILLS_INSTALL_TO_PROJECT = 'skills:installToProject';
+export const SKILLS_INSTALL_TO_PROJECT_FROM_SOURCE = 'skills:installToProjectFromSource';
+export const SKILLS_DELETE_PROJECT = 'skills:deleteProject';
+
 // Tool approval channels
 export const TOOL_APPROVAL_REQUEST = 'tool:approvalRequest';
 export const TOOL_APPROVAL_RESPONSE = 'tool:approvalResponse';

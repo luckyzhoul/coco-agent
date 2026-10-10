@@ -1,6 +1,7 @@
 import type { IpcMain } from 'electron';
 import type { BrowserWindow } from 'electron';
 import { dialog, shell } from 'electron';
+import * as fs from 'node:fs';
 import { workspaceManager } from '../workspace/WorkspaceManager';
 import { fileService } from '../workspace/FileService';
 import { agentRuntime } from '../agent/AgentRuntime';
@@ -10,6 +11,7 @@ import { settingsManager } from '../settings/SettingsManager';
 import { modelManager } from '../models/ModelManager';
 import { mcpManager } from '../mcp/McpManager';
 import { skillManager } from '../skills/SkillManager';
+import { projectSkillsDir } from '../skills/projectSkills';
 import { skillInstaller } from '../skills/SkillInstaller';
 import { approvalManager } from '../approval/ApprovalManager';
 import { browserService } from '../browser/BrowserService';
@@ -76,6 +78,11 @@ import {
   SKILLS_INSTALL_FROM_SOURCE,
   SKILLS_FETCH_CATALOG,
   SKILLS_INSTALL_FROM_CATALOG,
+  SKILLS_LIST_PROJECT,
+  SKILLS_OPEN_PROJECT_DIR,
+  SKILLS_INSTALL_TO_PROJECT,
+  SKILLS_INSTALL_TO_PROJECT_FROM_SOURCE,
+  SKILLS_DELETE_PROJECT,
   TOOL_APPROVAL_RESPONSE,
   TOOL_APPROVAL_SET_AUTO,
   BROWSER_GET_STATUS,
@@ -403,6 +410,48 @@ export function registerIpcHandlers(
   ipcMain.handle(SKILLS_INSTALL_FROM_CATALOG, async (_e, source: string) => {
     const installed = await skillInstaller.installFromSource(source);
     return { installed, skills: skillManager.list() };
+  });
+
+  // Project-space (workspace-level) skills, scoped to the app's current space
+  const currentSpacePath = () => workspaceManager.getCurrent()?.path;
+
+  ipcMain.handle(SKILLS_LIST_PROJECT, () => {
+    return skillManager.listProject(currentSpacePath());
+  });
+
+  ipcMain.handle(SKILLS_OPEN_PROJECT_DIR, async () => {
+    const ws = currentSpacePath();
+    if (!ws) throw new Error('尚未选择项目空间');
+    const dir = projectSkillsDir(ws);
+    fs.mkdirSync(dir, { recursive: true });
+    await shell.openPath(dir);
+    return dir;
+  });
+
+  ipcMain.handle(SKILLS_INSTALL_TO_PROJECT, async () => {
+    const ws = currentSpacePath();
+    if (!ws) throw new Error('尚未选择项目空间');
+    const win = getMainWindow();
+    const result = await dialog.showOpenDialog(win!, {
+      title: '选择技能目录（须包含 SKILL.md）',
+      properties: ['openDirectory']
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+    const installed = skillManager.installToProject(result.filePaths[0], ws);
+    return { installed, skills: skillManager.listProject(ws) };
+  });
+
+  ipcMain.handle(SKILLS_INSTALL_TO_PROJECT_FROM_SOURCE, async (_e, source: string) => {
+    const ws = currentSpacePath();
+    if (!ws) throw new Error('尚未选择项目空间');
+    const installed = await skillInstaller.installFromSource(source, ws);
+    return { installed, skills: skillManager.listProject(ws) };
+  });
+
+  ipcMain.handle(SKILLS_DELETE_PROJECT, (_e, name: string) => {
+    return skillManager.deleteProject(name, currentSpacePath());
   });
 
   // Tool approval handlers

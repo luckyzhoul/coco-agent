@@ -14,6 +14,7 @@ import { modelManager } from '../models/ModelManager';
 import { providerIdFor, syncPiModelConfig } from '../models/PiModelConfig';
 import { agentManager } from '../agents/AgentManager';
 import { agentSkillsDir, buildPersonaPrompt } from '../agents/persona';
+import { projectSkillsDir } from '../skills/projectSkills';
 import { pathGuard } from '../security/PathGuard';
 import { guardFileWrite, guardedBashOperations, guardedPowerShellOperations } from '../security/writeGuard';
 import { workspaceManager } from '../workspace/WorkspaceManager';
@@ -575,12 +576,22 @@ export class AgentRuntime {
   ): Promise<DefaultResourceLoader> {
     const agentId = agentManager.getActiveId();
 
+    // Project-space skills (<space>/.coco/skills) apply to every agent while
+    // the session is bound to that space. They are listed first because Pi
+    // resolves same-name skills first-wins across the paths in this array —
+    // a workspace skill must override an agent's enabled global copy.
+    const additionalSkillPaths = [agentSkillsDir(agentId)];
+    const workspaceSkillsDir = projectSkillsDir(workspacePath);
+    if (fs.existsSync(workspaceSkillsDir)) {
+      additionalSkillPaths.unshift(workspaceSkillsDir);
+    }
+
     const loader = new DefaultResourceLoader({
       cwd: workspacePath,
       agentDir: PI_RUNTIME_DIR,
       settingsManager: piSettingsManager,
       appendSystemPrompt: buildPersonaPrompt(agentId),
-      additionalSkillPaths: [agentSkillsDir(agentId)]
+      additionalSkillPaths
     });
 
     await loader.reload();

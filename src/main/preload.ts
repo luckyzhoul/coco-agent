@@ -95,6 +95,11 @@ import {
   SKILLS_INSTALL_FROM_SOURCE,
   SKILLS_FETCH_CATALOG,
   SKILLS_INSTALL_FROM_CATALOG,
+  SKILLS_LIST_PROJECT,
+  SKILLS_OPEN_PROJECT_DIR,
+  SKILLS_INSTALL_TO_PROJECT,
+  SKILLS_INSTALL_TO_PROJECT_FROM_SOURCE,
+  SKILLS_DELETE_PROJECT,
   TOOL_APPROVAL_REQUEST,
   TOOL_APPROVAL_RESPONSE,
   TOOL_APPROVAL_SET_AUTO,
@@ -282,7 +287,23 @@ const electronAPI = {
       ipcRenderer.invoke(SKILLS_INSTALL_FROM_CATALOG, source) as Promise<{
         installed: SkillInfo;
         skills: SkillInfo[];
-      }>
+      }>,
+    // Project-space (workspace-level) skills
+    listProject: () =>
+      ipcRenderer.invoke(SKILLS_LIST_PROJECT) as Promise<SkillInfo[]>,
+    openProjectDir: () =>
+      ipcRenderer.invoke(SKILLS_OPEN_PROJECT_DIR) as Promise<string>,
+    installToProject: () =>
+      ipcRenderer.invoke(SKILLS_INSTALL_TO_PROJECT) as Promise<
+        { installed: SkillInfo; skills: SkillInfo[] } | null
+      >,
+    installToProjectFromSource: (source: string) =>
+      ipcRenderer.invoke(SKILLS_INSTALL_TO_PROJECT_FROM_SOURCE, source) as Promise<{
+        installed: SkillInfo;
+        skills: SkillInfo[];
+      }>,
+    deleteProject: (name: string) =>
+      ipcRenderer.invoke(SKILLS_DELETE_PROJECT, name) as Promise<SkillInfo[]>
   },
   on: {
     agentMessage: (callback: (msg: Message) => void) => {

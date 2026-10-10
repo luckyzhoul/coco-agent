@@ -96,3 +96,16 @@ export function RefreshIcon({ className = 'h-3.5 w-3.5' }: IconProps) {
     </svg>
   );
 }
+
+export function ZapIcon({ className = 'h-3 w-3' }: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
+      <path
+        d="M8.75 1.75 3.5 9h3.25l-.5 5.25L11.5 7H8.25l.5-5.25Z"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
