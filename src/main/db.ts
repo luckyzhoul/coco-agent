@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS messages (
   timestamp    INTEGER NOT NULL,
   tool_calls   TEXT,
   parts        TEXT,
+  usage        TEXT,
   turn_summary TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
@@ -99,6 +100,11 @@ export function initDb(): DatabaseSync {
   }
   try {
     db.exec('ALTER TABLE messages ADD COLUMN parts TEXT');
+  } catch {
+    // Column already present.
+  }
+  try {
+    db.exec('ALTER TABLE messages ADD COLUMN usage TEXT');
   } catch {
     // Column already present.
   }

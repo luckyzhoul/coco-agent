@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAgentEvent, useIpcRenderer } from "../../hooks/useIpcRenderer";
 import { useChatStore } from "../../stores/useChatStore";
-import type { CompactionEventPayload } from "@shared/types";
+import type { AgentStatus, CompactionEventPayload } from "@shared/types";
 import {
   formatPercent,
   formatTokens,
@@ -38,6 +38,19 @@ export function ContextUsageIndicator() {
     const timer = setInterval(refresh, POLL_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [refresh]);
+
+  // 事件驱动刷新：① 切会话（status 携带新 sessionId，此时主进程已完成会话重建
+  // 与历史回放）立即重拉，否则 5 秒轮询间隔内还显示上个会话的数值；
+  // ② 回复结束（状态回到 idle）立即重拉，不等下一次轮询。
+  const statusSessionIdRef = useRef<string | null | undefined>(undefined);
+  useAgentEvent("agentStatus", (s: AgentStatus) => {
+    if (s.sessionId !== statusSessionIdRef.current) {
+      statusSessionIdRef.current = s.sessionId;
+      refresh();
+    } else if (s.state === "idle") {
+      refresh();
+    }
+  });
 
   useAgentEvent("agentCompaction", (data: CompactionEventPayload) => {
     if (data.phase === "end") {

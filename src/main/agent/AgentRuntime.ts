@@ -24,7 +24,7 @@ import { memoryService } from '../memory/MemoryService';
 import { approvalManager } from '../approval/ApprovalManager';
 import { settingsManager } from '../settings/SettingsManager';
 import { benignCompactionNotice, buildCompactionSettings } from './compaction';
-import { toPiMessages } from './sessionRestore';
+import { toPiMessages, estimateTextTokens, estimatePiMessagesTokens } from './sessionRestore';
 import { PI_RUNTIME_DIR } from '../paths';
 import { buildBrowserTools } from '../browser/browserTools';
 import { buildComputerTools } from '../computer/computerTools';
@@ -668,6 +668,9 @@ export class AgentRuntime {
         session.sessionManager.appendMessage(m as any);
       }
       session.agent.state.messages = session.sessionManager.buildSessionContext().messages as any;
+      // 老会话（usage 列上线前入库）没有真实用量：按 CJK 感知估算回填，
+      // 避免 getContextUsage 退回 SDK 的 chars/4 估算（中文被低估约 4 倍）。
+      this.backfillReplayedUsage(session, allCustomTools);
     }
 
     this.unsubscriber = session.subscribe((event: AgentSessionEvent) => {
@@ -676,6 +679,48 @@ export class AgentRuntime {
 
     this.setStatus({ sessionId, state: 'idle' });
     return meta;
+  }
+
+  /**
+   * 给没有真实 usage 的回放会话回填估算用量（仅内存，不写 DB）。
+   *
+   * getContextUsage 依赖最后一条 assistant 的 usage.totalTokens；usage 列上线前
+   * 入库的老会话该值全 0，SDK 会退回 chars/4 文本估算——中文被低估约 4 倍，且
+   * 完全漏掉 system prompt 与工具定义的真实开销。这里对整段上下文（含 system
+   * prompt + 工具 schema）做 CJK 感知估算，挂到回放后的最后一条 assistant 上。
+   * 会话内一旦产生新回复，真实 usage 会覆盖它。
+   */
+  private backfillReplayedUsage(session: AgentSession, tools: ToolDefinition[]): void {
+    const messages = session.agent.state.messages as Array<{ role: string; usage?: Record<string, number>; stopReason?: string }>;
+    // 只要历史里存在任一条有效 usage，SDK 就会优先用它，无需回填
+    const hasRealUsage = [...messages]
+      .reverse()
+      .some(
+        (m) =>
+          m.role === 'assistant' &&
+          m.stopReason !== 'aborted' &&
+          m.stopReason !== 'error' &&
+          m.usage &&
+          (m.usage.totalTokens ??
+            (m.usage.input ?? 0) + (m.usage.output ?? 0) +
+            (m.usage.cacheRead ?? 0) + (m.usage.cacheWrite ?? 0)) > 0
+      );
+    if (hasRealUsage) return;
+
+    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+    if (!lastAssistant) return;
+
+    const toolText = tools
+      .map((t) =>
+        [t.name, t.description, t.promptSnippet ?? '', (t.promptGuidelines ?? []).join('\n'), JSON.stringify(t.parameters ?? {})].join('\n')
+      )
+      .join('\n');
+    const total =
+      estimatePiMessagesTokens(session.agent.state.messages as never) +
+      estimateTextTokens(session.systemPrompt + '\n' + toolText);
+    if (total <= 0) return;
+
+    lastAssistant.usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: total };
   }
 
   deleteSession(sessionId: string): void {
@@ -1015,6 +1060,11 @@ export class AgentRuntime {
       }
 
       case 'message_end': {
+        // SDK 的 entry 生命周期事件对 user/toolResult 也会触发（如恢复回放）；
+        // 这里的流式收尾与持久化只针对 assistant，避免误存行/误存 usage。
+        if ((event.message as { role?: string }).role !== 'assistant') {
+          break;
+        }
         const msg = event.message as { stopReason?: string; errorMessage?: string };
         if (msg.stopReason === 'error' || msg.stopReason === 'aborted') {
           const detail =
@@ -1033,6 +1083,22 @@ export class AgentRuntime {
 
         // Persist to DB (each message_end = one row; history loader merges them)
         const assistantMsg = this.buildCurrentMessage();
+        // 真实 token 用量随消息入库：切换会话回放时 SDK 靠它算上下文用量，
+        // 不存的话 getContextUsage 会退回 chars/4 文本估算（中文误差极大）。
+        const sdkUsage = (event.message as { usage?: Record<string, number> }).usage;
+        if (sdkUsage) {
+          assistantMsg.usage = {
+            input: Number(sdkUsage.input ?? 0),
+            output: Number(sdkUsage.output ?? 0),
+            cacheRead: Number(sdkUsage.cacheRead ?? 0),
+            cacheWrite: Number(sdkUsage.cacheWrite ?? 0),
+            totalTokens: Number(
+              sdkUsage.totalTokens ??
+                (sdkUsage.input ?? 0) + (sdkUsage.output ?? 0) +
+                (sdkUsage.cacheRead ?? 0) + (sdkUsage.cacheWrite ?? 0)
+            )
+          };
+        }
         appendMessage(this.activeSessionId, assistantMsg);
         this.messageCount++;
 

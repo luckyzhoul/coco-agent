@@ -4,10 +4,12 @@
  *
  * 纯函数、无 Electron 依赖（覆盖于 scripts/test-session-restore.ts）。
  *
- * 注意：应用侧不持久化 assistant 的 api/provider/model/usage，这里用当前激活
- * 模型合成占位值（usage 全 0）——它们不影响上下文重建与 token 估算的正确性。
+ * 注意：应用侧不持久化 assistant 的 api/provider/model，这里用当前激活模型合成
+ * 占位值。usage 从 DB 还原（没有则全 0 占位）——SDK 的 getContextUsage 靠最后一条
+ * assistant 的真实 usage 计算上下文用量，全 0 会被跳过并退回 chars/4 文本估算，
+ * 中文场景误差极大，所以 usage 必须随消息持久化（见 scripts/test-session-restore.ts）。
  */
-import type { Message, MessagePart, ToolCall } from '../../shared/types';
+import type { Message, MessagePart, ToolCall, MessageUsage } from '../../shared/types';
 
 /** pi-ai 的消息类型（结构性声明，避免运行时依赖 SDK 内部路径） */
 export interface PiMessage {
@@ -24,7 +26,64 @@ export interface ModelInfo {
   id: string;
 }
 
-const ZERO_USAGE = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 };
+const ZERO_USAGE = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 };
+
+// CJK 区段：汉字、假名、谚文（覆盖中日韩主要字符集）
+const CJK_CHAR_RE = /[\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uAC00-\uD7AF]/;
+
+/**
+ * CJK 感知的文本 token 估算：中文字符按 ~1 token 计，其余按 chars/4。
+ * SDK 自带的 estimateTokens 是纯 chars/4，对中文低估约 4 倍——只用于
+ * 老会话（无持久化 usage）切换回放时的用量回填，结果仍是一次估算。
+ */
+export function estimateTextTokens(text: string): number {
+  if (!text) return 0;
+  let cjk = 0;
+  let other = 0;
+  for (const ch of text) {
+    if (CJK_CHAR_RE.test(ch)) cjk++;
+    else other++;
+  }
+  return Math.ceil(cjk + other / 4);
+}
+
+/** 图片块的估算 token（与 SDK 的 ESTIMATED_IMAGE_CHARS 4800 / 4 对齐） */
+const ESTIMATED_IMAGE_TOKENS = 1200;
+
+/**
+ * 估算一组 Pi 消息的总 token。镜像 SDK estimateTokens 的消息遍历方式，
+ * 但文本计数走 estimateTextTokens（CJK 感知）。
+ */
+export function estimatePiMessagesTokens(messages: PiMessage[]): number {
+  let total = 0;
+  for (const message of messages) {
+    const content = (message as { content?: unknown }).content;
+    if (message.role === 'assistant') {
+      for (const block of Array.isArray(content) ? content : []) {
+        const b = block as Record<string, unknown>;
+        if (b.type === 'text') total += estimateTextTokens(b.text as string);
+        else if (b.type === 'thinking') total += estimateTextTokens(b.thinking as string);
+        else if (b.type === 'toolCall') {
+          total += estimateTextTokens(
+            String(b.name ?? '') + JSON.stringify(b.arguments ?? {})
+          );
+        }
+      }
+      continue;
+    }
+    // user：string 或内容块数组；toolResult/custom：内容块数组
+    if (typeof content === 'string') {
+      total += estimateTextTokens(content);
+    } else if (Array.isArray(content)) {
+      for (const block of content) {
+        const b = block as Record<string, unknown>;
+        if (b.type === 'text') total += estimateTextTokens(b.text as string);
+        else if (b.type === 'image') total += ESTIMATED_IMAGE_TOKENS;
+      }
+    }
+  }
+  return total;
+}
 
 /** 有结果可回放的 toolCall（被中断的 pending/running 没有结果，跳过） */
 function hasResult(call: ToolCall): boolean {
@@ -137,15 +196,22 @@ export function toPiMessages(messages: Message[], modelInfo: ModelInfo | null): 
     if (msg.parts && msg.parts.length > 0) {
       const mapped = mapAssistantParts(msg.parts, msg.timestamp);
       if (mapped.length > 0) {
-        // 回填合成模型字段
+        // 回填合成模型字段与真实 usage（无则保留全 0 占位）
         const assistant = mapped[0] as Record<string, unknown>;
         assistant.api = modelInfo?.api ?? '';
         assistant.provider = modelInfo?.provider ?? '';
         assistant.model = modelInfo?.id ?? '';
+        assistant.usage = msg.usage ? { ...msg.usage } : { ...ZERO_USAGE };
         out.push(...mapped);
       }
     } else {
-      out.push(...mapLegacyAssistant(msg, modelInfo));
+      const mapped = mapLegacyAssistant(msg, modelInfo);
+      if (mapped.length > 0) {
+        (mapped[0] as Record<string, unknown>).usage = msg.usage
+          ? { ...msg.usage }
+          : { ...ZERO_USAGE };
+      }
+      out.push(...mapped);
     }
   }
   return out;

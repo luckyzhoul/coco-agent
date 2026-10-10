@@ -1,4 +1,7 @@
-import { toPiMessages } from '../src/main/agent/sessionRestore';
+import { toPiMessages, estimateTextTokens, estimatePiMessagesTokens } from '../src/main/agent/sessionRestore';
+import { estimateTokens } from '@earendil-works/pi-coding-agent';
+// estimateContextTokens 未从 SDK 主入口导出，直载 dist（estimateTokens 已含在主入口）
+import { estimateContextTokens } from '../node_modules/@earendil-works/pi-coding-agent/dist/core/compaction/compaction.js';
 import type { Message } from '../src/shared/types';
 
 function assert(cond: boolean, msg: string) {
@@ -145,5 +148,93 @@ const [noModel] = toPiMessages(
   null
 );
 assert(noModel && noModel.role === 'user', 'null model info still maps user messages');
+
+// --- usage 透传：切换会话后上下文用量估算依赖真实 usage（不能是全 0 占位） ---
+const USAGE = { input: 39_000, output: 1_800, cacheRead: 1_200, cacheWrite: 0, totalTokens: 42_000 };
+const [usageAssist] = toPiMessages(
+  [{
+    id: 'm11', role: 'assistant', timestamp: 12000,
+    parts: [{ id: 'p1', index: 0, type: 'text', content: '回答', state: 'done' } as any],
+    usage: USAGE
+  }] as unknown as Message[],
+  MODEL
+);
+assert(
+  JSON.stringify((usageAssist as any).usage) === JSON.stringify(USAGE),
+  'assistant usage round-trips into replayed message'
+);
+
+// 没带 usage 的旧消息仍用全 0 占位（向后兼容）
+const [noUsageAssist] = toPiMessages(
+  [{
+    id: 'm12', role: 'assistant', timestamp: 13000,
+    parts: [{ id: 'p1', index: 0, type: 'text', content: '回答', state: 'done' } as any]
+  }] as Message[],
+  MODEL
+);
+assert(
+  (noUsageAssist as any).usage && (noUsageAssist as any).usage.totalTokens === 0,
+  'missing usage falls back to zero placeholder'
+);
+
+// --- 端到端：回放后 SDK 的上下文估算应等于真实 usage（+ 尾部增量估算） ---
+const replayedWithUsage = toPiMessages(
+  [
+    { id: 'm13', role: 'user', content: '第一轮提问', timestamp: 14000 },
+    {
+      id: 'm14', role: 'assistant', timestamp: 15000,
+      parts: [{ id: 'p1', index: 0, type: 'text', content: '回答', state: 'done' } as any],
+      usage: USAGE
+    },
+    { id: 'm15', role: 'user', content: '追问', timestamp: 16000 }
+  ] as unknown as Message[],
+  MODEL
+);
+const est = estimateContextTokens(replayedWithUsage as any[]);
+const trailingUser = replayedWithUsage[replayedWithUsage.length - 1];
+assert(
+  est.tokens === USAGE.totalTokens + estimateTokens(trailingUser as any),
+  `context estimate after replay equals real usage + trailing (got ${est.tokens})`
+);
+
+// --- CJK 感知估算：老会话（无持久化 usage）切换回放时的回填基础 ---
+// SDK 的 estimateTokens 是 chars/4，中文被低估约 4 倍；估算器按 CJK 字符 ~1 token 计。
+assert(estimateTextTokens('一二三四') === 4, 'CJK chars count ~1 token each (not chars/4)');
+assert(estimateTextTokens('abcd') === 1, 'ASCII still ~4 chars per token');
+assert(estimateTextTokens('你好世界 hello') === 4 + 2, 'mixed CJK + ASCII');
+assert(estimateTextTokens('') === 0, 'empty text -> 0');
+
+// 回放的 Pi 消息序列：user(string) + assistant(text/thinking/toolCall) + toolResult
+const estMsgs = toPiMessages(
+  [
+    { id: 'm20', role: 'user', content: '分析这个项目', timestamp: 20000 },
+    {
+      id: 'm21', role: 'assistant', timestamp: 21000,
+      parts: [
+        { id: 'p1', index: 0, type: 'thinking', content: '思考内容四个字', state: 'done' } as any,
+        { id: 'p2', index: 1, type: 'text', content: '结论三个字', state: 'done' } as any,
+        {
+          id: 'p3', index: 2, type: 'tool_call',
+          toolCall: { id: 'tc9', name: 'read', input: { path: 'a' }, status: 'success', output: '结果' }
+        } as any
+      ]
+    }
+  ] as unknown as Message[],
+  MODEL
+);
+const estTotal = estimatePiMessagesTokens(estMsgs as any[]);
+// user 6 + thinking 7 + text 5 + toolCall(name+args JSON) 4 + toolResult 2
+const toolCallEst = estimateTextTokens('read' + JSON.stringify({ path: 'a' }));
+assert(estTotal === 6 + 7 + 5 + toolCallEst + 2,
+  `per-message estimate sums user/thinking/text/toolCall/toolResult (got ${estTotal})`);
+
+// 回填机制端到端：无 usage 的回放消息挂上估算 usage 后，SDK 估算应返回该值
+const lastAssistant = [...estMsgs].reverse().find((m) => m.role === 'assistant') as any;
+lastAssistant.usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: estTotal + 500 };
+const estAfterBackfill = estimateContextTokens(estMsgs as any[]);
+// SDK 会在 usage 之后追加 trailing 消息（这里的 toolResult）的 chars/4 估算
+const trailing = estimateTokens(estMsgs[estMsgs.length - 1] as any);
+assert(estAfterBackfill.tokens === estTotal + 500 + trailing,
+  `backfilled usage drives SDK context estimate (got ${estAfterBackfill.tokens})`);
 
 console.log('\nsession restore tests done');

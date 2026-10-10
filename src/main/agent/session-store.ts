@@ -1,5 +1,5 @@
 import { getDb } from '../db';
-import type { Message, SessionInfo, MessagePart, TurnSummary } from '../../shared/types';
+import type { Message, SessionInfo, MessagePart, TurnSummary, MessageUsage } from '../../shared/types';
 
 interface SessionRow {
   id: string;
@@ -20,6 +20,7 @@ interface MessageRow {
   timestamp: number;
   tool_calls: string | null;
   parts: string | null;
+  usage: string | null;
   turn_summary: string | null;
 }
 
@@ -95,7 +96,7 @@ export function deleteSession(sessionId: string): void {
 export function appendMessage(sessionId: string, message: Message): void {
   getDb()
     .prepare(
-      'INSERT INTO messages (id, session_id, role, content, timestamp, tool_calls, parts, turn_summary) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO messages (id, session_id, role, content, timestamp, tool_calls, parts, usage, turn_summary) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
     .run(
       message.id,
@@ -105,6 +106,7 @@ export function appendMessage(sessionId: string, message: Message): void {
       message.timestamp,
       message.toolCalls ? JSON.stringify(message.toolCalls) : null,
       message.parts ? JSON.stringify(message.parts) : null,
+      message.usage ? JSON.stringify(message.usage) : null,
       message.turnSummary ? JSON.stringify(message.turnSummary) : null
     );
 }
@@ -144,6 +146,7 @@ export function loadSessionMessages(sessionId: string): Message[] {
     const turnSummary: TurnSummary | undefined = r.turn_summary
       ? JSON.parse(r.turn_summary)
       : undefined;
+    const usage: MessageUsage | undefined = r.usage ? JSON.parse(r.usage) : undefined;
     const toolCalls = r.tool_calls ? JSON.parse(r.tool_calls) : undefined;
 
     // Backward compat: if no parts but content exists, synthesize a text part
@@ -177,6 +180,7 @@ export function loadSessionMessages(sessionId: string): Message[] {
       timestamp: r.timestamp,
       toolCalls,
       parts: finalParts,
+      usage,
       turnSummary
     };
   });

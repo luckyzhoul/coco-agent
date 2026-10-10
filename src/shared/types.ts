@@ -67,12 +67,27 @@ export interface CompactionEventPayload {
   tokensBefore?: number;
 }
 
+/**
+ * assistant 消息的真实 token 用量（模型 API 返回），随消息持久化。
+ * 切换会话回放时还原，SDK 的 getContextUsage 依赖它——没有它会退回
+ * chars/4 文本估算，中文场景误差极大（见 scripts/test-session-restore.ts）。
+ */
+export interface MessageUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  totalTokens: number;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   /** user/system 消息用 content（纯文本）；assistant 优先用 parts */
   content?: string;
   timestamp: number;
+  /** assistant 消息的真实 token 用量（来自模型 API），用于跨会话恢复上下文用量统计 */
+  usage?: MessageUsage;
   /** assistant 消息的分段内容（文字、思考、工具调用、文件交付等） */
   parts?: MessagePart[];
   /** 兼容旧数据，新代码优先使用 parts；从 parts 中提取 */
