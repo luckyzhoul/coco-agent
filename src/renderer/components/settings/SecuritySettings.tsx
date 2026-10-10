@@ -4,7 +4,6 @@ import { CheckIcon } from '../layout/icons';
 import { SecurityModeIcon, SECURITY_MODE_STYLES } from '../security/modeIcons';
 import { SECURITY_MODES } from '../security/securityModes';
 import { useSecurityStore } from '../../stores/useSecurityStore';
-import { ArchiveManager } from './ArchiveManager';
 
 function AuthorizedDirsManager() {
   const [dirs, setDirs] = useState<AuthorizedDir[]>([]);
@@ -199,10 +198,6 @@ export function SecuritySettings() {
           已保存 — 当前对话立即生效。
         </div>
       )}
-
-      <div className="border-t border-border/50 pt-6">
-        <ArchiveManager />
-      </div>
     </div>
   );
 }

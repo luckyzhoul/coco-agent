@@ -64,7 +64,10 @@ import {
   listSessions,
   createSessionMeta,
   updateSessionMeta,
-  deleteSession as deleteSessionFromStore,
+  setSessionDeleted,
+  purgeSession,
+  emptyTrash,
+  listTrashedSessions,
   appendMessage,
   deleteTrailingAssistantMessages,
   loadSessionMessages,
@@ -723,6 +726,7 @@ export class AgentRuntime {
     lastAssistant.usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: total };
   }
 
+  /** 侧边栏删除 = 移入回收站（软删除），可在设置的回收站中恢复。 */
   deleteSession(sessionId: string): void {
     if (this.activeSessionId === sessionId) {
       if (this.unsubscriber) {
@@ -733,7 +737,34 @@ export class AgentRuntime {
       this.activeSessionId = null;
       this.setStatus({ sessionId: null, state: 'idle' });
     }
-    deleteSessionFromStore(sessionId);
+    setSessionDeleted(sessionId, true);
+  }
+
+  restoreSession(sessionId: string): void {
+    setSessionDeleted(sessionId, false);
+  }
+
+  /** 彻底删除（硬删），仅回收站使用。 */
+  purgeSession(sessionId: string): void {
+    if (this.activeSessionId === sessionId) {
+      // 被软删除的会话不会是活跃会话，这里兜底防止悬挂引用。
+      if (this.unsubscriber) {
+        this.unsubscriber();
+        this.unsubscriber = null;
+      }
+      this.activeSession = null;
+      this.activeSessionId = null;
+      this.setStatus({ sessionId: null, state: 'idle' });
+    }
+    purgeSession(sessionId);
+  }
+
+  emptyTrash(): void {
+    emptyTrash();
+  }
+
+  listTrashedSessions(): SessionInfo[] {
+    return listTrashedSessions();
   }
 
   listSessions(): SessionInfo[] {

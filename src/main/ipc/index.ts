@@ -37,6 +37,10 @@ import {
   AGENT_GET_STATUS,
   AGENT_SEARCH_SESSIONS,
   AGENT_ARCHIVE_SESSION,
+  AGENT_RESTORE_SESSION,
+  AGENT_PURGE_SESSION,
+  AGENT_EMPTY_TRASH,
+  AGENT_LIST_TRASHED_SESSIONS,
   AGENT_REBIND_WORKSPACE,
   AGENT_SET_THINKING_LEVEL,
   AGENT_COMPACT_CONTEXT,
@@ -201,6 +205,22 @@ export function registerIpcHandlers(
   ipcMain.handle(AGENT_ARCHIVE_SESSION, (_e, sessionId: string, archived: boolean) => {
     agentRuntime.setSessionArchived(sessionId, archived);
     return agentRuntime.listSessions();
+  });
+
+  ipcMain.handle(AGENT_RESTORE_SESSION, (_e, sessionId: string) => {
+    agentRuntime.restoreSession(sessionId);
+  });
+
+  ipcMain.handle(AGENT_PURGE_SESSION, (_e, sessionId: string) => {
+    agentRuntime.purgeSession(sessionId);
+  });
+
+  ipcMain.handle(AGENT_EMPTY_TRASH, () => {
+    agentRuntime.emptyTrash();
+  });
+
+  ipcMain.handle(AGENT_LIST_TRASHED_SESSIONS, () => {
+    return agentRuntime.listTrashedSessions();
   });
 
   ipcMain.handle(AGENT_REBIND_WORKSPACE, async (_e, workspacePath: string) => {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { SessionInfo } from '@shared/types';
-import { UnarchiveIcon, CloseIcon } from '../layout/icons';
+import { UnarchiveIcon, TrashIcon } from '../layout/icons';
 
 function formatTime(ts: number): string {
   const date = new Date(ts);
@@ -42,8 +42,8 @@ export function ArchiveManager() {
     }
   };
 
+  // 删除 = 移入回收站（软删除），可在回收站中恢复，无需确认。
   const handleDelete = async (session: SessionInfo) => {
-    if (!window.confirm(`确定删除会话「${session.title}」吗？此操作不可撤销。`)) return;
     try {
       await window.electronAPI.agent.deleteSession(session.id);
       const all = await window.electronAPI.agent.listSessions();
@@ -58,7 +58,7 @@ export function ArchiveManager() {
       <div>
         <h4 className="text-sm font-medium">归档对话</h4>
         <p className="text-xs text-muted-foreground mt-1">
-          查看和管理已归档的对话。取消归档后，对话将重新出现在侧边栏列表中。
+          查看和管理已归档的对话。取消归档后，对话将重新出现在侧边栏列表中；删除会移入回收站。
         </p>
       </div>
 
@@ -97,10 +97,10 @@ export function ArchiveManager() {
                 </button>
                 <button
                   onClick={() => handleDelete(session)}
-                  title="删除会话"
+                  title="移入回收站"
                   className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
                 >
-                  <CloseIcon className="w-4 h-4" />
+                  <TrashIcon className="w-4 h-4" />
                 </button>
               </div>
             </div>

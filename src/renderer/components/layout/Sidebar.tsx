@@ -219,13 +219,12 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
     }
   };
 
+  // 删除 = 移入回收站（设置的「会话管理」里可恢复），所以无需确认弹窗。
   const handleDeleteSession = async (
     e: React.MouseEvent,
     session: SessionInfo,
   ) => {
     e.stopPropagation();
-    if (!window.confirm(`确定删除会话「${session.title}」吗？此操作不可撤销。`))
-      return;
     await ipc.agent.deleteSession(session.id);
     const updated = await ipc.agent.listSessions();
     setSessions(updated);

@@ -115,6 +115,8 @@ export interface SessionInfo {
   updatedAt: number;
   messageCount: number;
   archived: boolean;
+  /** 回收站删除时间戳；0 或缺省表示未在回收站中。 */
+  deletedAt?: number;
 }
 
 export interface AgentStatus {

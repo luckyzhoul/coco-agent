@@ -187,6 +187,29 @@ export function UnarchiveIcon({ className, style }: IconProps) {
   );
 }
 
+/** 回收站 — 垃圾桶 */
+export function TrashIcon({ className, style }: IconProps) {
+  return (
+    <svg style={style} viewBox="0 0 24 24" fill="none" className={cn('w-3.5 h-3.5', className)} aria-hidden stroke="currentColor" strokeWidth="1.5">
+      <path d="M3 6h18" strokeLinecap="round" />
+      <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" strokeLinecap="round" />
+      <path d="M5 6l1 14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-14" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 11v6M14 11v6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** 历史 — 时钟加逆时针箭头 */
+export function HistoryIcon({ className, style }: IconProps) {
+  return (
+    <svg style={style} viewBox="0 0 24 24" fill="none" className={cn('w-3.5 h-3.5', className)} aria-hidden stroke="currentColor" strokeWidth="1.5">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 3v5h5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 /** MCP — 插头 */
 export function PlugIcon({ className, style }: IconProps) {
   return (

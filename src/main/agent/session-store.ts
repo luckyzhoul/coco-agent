@@ -10,6 +10,7 @@ interface SessionRow {
   updated_at: number;
   message_count: number;
   archived: number;
+  deleted_at: number;
 }
 
 interface MessageRow {
@@ -24,12 +25,8 @@ interface MessageRow {
   turn_summary: string | null;
 }
 
-export function listSessions(): SessionInfo[] {
-  const rows = getDb()
-    .prepare('SELECT * FROM sessions ORDER BY updated_at DESC')
-    .all() as unknown as SessionRow[];
-
-  return rows.map((m) => ({
+function rowToSession(m: SessionRow): SessionInfo {
+  return {
     id: m.id,
     title: m.title,
     workspacePath: m.workspace_path,
@@ -37,14 +34,46 @@ export function listSessions(): SessionInfo[] {
     createdAt: m.created_at,
     updatedAt: m.updated_at,
     messageCount: m.message_count,
-    archived: !!m.archived
-  }));
+    archived: !!m.archived,
+    deletedAt: m.deleted_at || undefined
+  };
+}
+
+export function listSessions(): SessionInfo[] {
+  const rows = getDb()
+    .prepare('SELECT * FROM sessions WHERE deleted_at = 0 ORDER BY updated_at DESC')
+    .all() as unknown as SessionRow[];
+
+  return rows.map(rowToSession);
+}
+
+/** 回收站列表：只含已软删除的会话。 */
+export function listTrashedSessions(): SessionInfo[] {
+  const rows = getDb()
+    .prepare('SELECT * FROM sessions WHERE deleted_at != 0 ORDER BY deleted_at DESC')
+    .all() as unknown as SessionRow[];
+
+  return rows.map(rowToSession);
 }
 
 export function setSessionArchived(sessionId: string, archived: boolean): void {
   getDb()
     .prepare('UPDATE sessions SET archived = ? WHERE id = ?')
     .run(archived ? 1 : 0, sessionId);
+}
+
+/** 软删除 / 恢复：deleted_at 记录入回收站时间，0 表示未删除。 */
+export function setSessionDeleted(sessionId: string, deleted: boolean): void {
+  getDb()
+    .prepare('UPDATE sessions SET deleted_at = ? WHERE id = ?')
+    .run(deleted ? Date.now() : 0, sessionId);
+}
+
+/** 彻底删除（硬删）：连同消息一起移除。 */
+export function purgeSession(sessionId: string): void {
+  const db = getDb();
+  db.prepare('DELETE FROM sessions WHERE id = ?').run(sessionId);
+  db.prepare('DELETE FROM messages WHERE session_id = ?').run(sessionId);
 }
 
 export function updateSessionWorkspace(sessionId: string, workspacePath: string): void {
@@ -88,9 +117,13 @@ export function updateSessionMeta(
 }
 
 export function deleteSession(sessionId: string): void {
-  const db = getDb();
-  db.prepare('DELETE FROM sessions WHERE id = ?').run(sessionId);
-  db.prepare('DELETE FROM messages WHERE session_id = ?').run(sessionId);
+  purgeSession(sessionId);
+}
+
+/** 清空回收站：彻底删除所有已软删除的会话。 */
+export function emptyTrash(): void {
+  getDb().prepare('DELETE FROM sessions WHERE deleted_at != 0').run();
+  getDb().prepare('DELETE FROM messages WHERE session_id NOT IN (SELECT id FROM sessions)').run();
 }
 
 export function appendMessage(sessionId: string, message: Message): void {
@@ -193,7 +226,7 @@ export function findMostRecentEmptySession(
   const row = getDb()
     .prepare(
       `SELECT * FROM sessions
-       WHERE message_count = 0 AND archived = 0
+       WHERE message_count = 0 AND archived = 0 AND deleted_at = 0
          AND agent_id = ? AND workspace_path = ?
        ORDER BY updated_at DESC LIMIT 1`
     )

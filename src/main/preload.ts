@@ -32,6 +32,10 @@ import {
   AGENT_GET_STATUS,
   AGENT_SEARCH_SESSIONS,
   AGENT_ARCHIVE_SESSION,
+  AGENT_RESTORE_SESSION,
+  AGENT_PURGE_SESSION,
+  AGENT_EMPTY_TRASH,
+  AGENT_LIST_TRASHED_SESSIONS,
   AGENT_REBIND_WORKSPACE,
   AGENT_SET_THINKING_LEVEL,
   AGENT_COMPACT_CONTEXT,
@@ -163,6 +167,14 @@ const electronAPI = {
       >,
     setArchived: (sessionId: string, archived: boolean) =>
       ipcRenderer.invoke(AGENT_ARCHIVE_SESSION, sessionId, archived) as Promise<SessionInfo[]>,
+    restoreSession: (sessionId: string) =>
+      ipcRenderer.invoke(AGENT_RESTORE_SESSION, sessionId) as Promise<void>,
+    purgeSession: (sessionId: string) =>
+      ipcRenderer.invoke(AGENT_PURGE_SESSION, sessionId) as Promise<void>,
+    emptyTrash: () =>
+      ipcRenderer.invoke(AGENT_EMPTY_TRASH) as Promise<void>,
+    listTrashedSessions: () =>
+      ipcRenderer.invoke(AGENT_LIST_TRASHED_SESSIONS) as Promise<SessionInfo[]>,
     rebindWorkspace: (workspacePath: string) =>
       ipcRenderer.invoke(AGENT_REBIND_WORKSPACE, workspacePath) as Promise<SessionInfo | null>,
     setThinkingLevel: (level: string) =>

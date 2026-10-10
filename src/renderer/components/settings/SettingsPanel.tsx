@@ -7,6 +7,7 @@ import { GeneralSettings } from './GeneralSettings';
 import { UpdateSettings } from './UpdateSettings';
 import { AgentsSettings } from './AgentsSettings';
 import { SecuritySettings } from './SecuritySettings';
+import { SessionSettings } from './SessionSettings';
 import {
   CogIcon,
   UserIcon,
@@ -15,6 +16,7 @@ import {
   PlugIcon,
   PuzzleIcon,
   UploadIcon,
+  HistoryIcon,
   CloseIcon
 } from '../layout/icons';
 
@@ -22,11 +24,20 @@ interface SettingsPanelProps {
   onClose: () => void;
 }
 
-type TabId = 'general' | 'agents' | 'security' | 'models' | 'mcp' | 'skills' | 'updates';
+type TabId =
+  | 'general'
+  | 'agents'
+  | 'sessions'
+  | 'security'
+  | 'models'
+  | 'mcp'
+  | 'skills'
+  | 'updates';
 
 const tabs: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'general', label: '通用', icon: CogIcon },
   { id: 'agents', label: 'Agent', icon: UserIcon },
+  { id: 'sessions', label: '会话管理', icon: HistoryIcon },
   { id: 'security', label: '安全', icon: ShieldIcon },
   { id: 'models', label: '模型', icon: BrainIcon },
   { id: 'mcp', label: 'MCP 服务', icon: PlugIcon },
@@ -100,6 +111,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <>
                 {activeTab === 'general' && <GeneralSettings />}
                 {activeTab === 'agents' && <AgentsSettings />}
+                {activeTab === 'sessions' && <SessionSettings />}
                 {activeTab === 'security' && <SecuritySettings />}
                 {activeTab === 'models' && <ModelsSettings />}
                 {activeTab === 'mcp' && <McpSettings />}
