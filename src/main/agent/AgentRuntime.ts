@@ -23,6 +23,8 @@ import { toolGate } from '../security/enforceToolGate';
 import { memoryService } from '../memory/MemoryService';
 import { approvalManager } from '../approval/ApprovalManager';
 import { settingsManager } from '../settings/SettingsManager';
+import { benignCompactionNotice, buildCompactionSettings } from './compaction';
+import { toPiMessages } from './sessionRestore';
 import { PI_RUNTIME_DIR } from '../paths';
 import { buildBrowserTools } from '../browser/browserTools';
 import { buildComputerTools } from '../computer/computerTools';
@@ -513,17 +515,21 @@ export class AgentRuntime {
     memoryService.load(agentManager.getActiveId());
 
     const appSettings = settingsManager.get();
+
+    // Materialise our model settings into models.json/auth.json and resolve the
+    // active model explicitly. Pi has no other way of learning about models.
+    const runtime = await this.resolveModelRuntime();
+
+    // Compaction budgets scale with the model's context window (SDK defaults
+    // assume a large one and would overflow small local models).
     const piSettingsManager = SettingsManager.inMemory({
-      compaction: { enabled: true, reserveTokens: 2000, keepRecentTokens: 3000 },
+      compaction: buildCompactionSettings(runtime?.model?.contextWindow),
       defaultThinkingLevel: (appSettings.defaultThinkingLevel || 'medium') as any
     });
     const resourceLoader = await this.buildResourceLoader(workspacePath, piSettingsManager);
 
     const allCustomTools = await this.buildCustomTools(workspacePath);
 
-    // Materialise our model settings into models.json/auth.json and resolve the
-    // active model explicitly. Pi has no other way of learning about models.
-    const runtime = await this.resolveModelRuntime();
     const { session } = await createAgentSession({
       cwd: workspacePath,
       agentDir: PI_RUNTIME_DIR,
@@ -595,10 +601,6 @@ export class AgentRuntime {
 
     // Apply active model configuration
     const appSettings = settingsManager.get();
-    const piSettingsManager = SettingsManager.inMemory({
-      compaction: { enabled: true, reserveTokens: 2000, keepRecentTokens: 3000 },
-      defaultThinkingLevel: (appSettings.defaultThinkingLevel || 'medium') as any
-    });
 
     // A session belongs to an agent; switching to it should switch the persona too.
     if (meta.agentId && meta.agentId !== agentManager.getActiveId()) {
@@ -625,10 +627,17 @@ export class AgentRuntime {
       }
     }
 
+    const runtime = await this.resolveModelRuntime();
+
+    // Compaction budgets scale with the model's context window (SDK defaults
+    // assume a large one and would overflow small local models).
+    const piSettingsManager = SettingsManager.inMemory({
+      compaction: buildCompactionSettings(runtime?.model?.contextWindow),
+      defaultThinkingLevel: (appSettings.defaultThinkingLevel || 'medium') as any
+    });
     const resourceLoader = await this.buildResourceLoader(meta.workspacePath, piSettingsManager);
     const allCustomTools = await this.buildCustomTools(meta.workspacePath);
 
-    const runtime = await this.resolveModelRuntime();
     const { session } = await createAgentSession({
       cwd: meta.workspacePath,
       agentDir: PI_RUNTIME_DIR,
@@ -646,6 +655,20 @@ export class AgentRuntime {
     this.messageCount = meta.messageCount;
     this.resetTurnState();
     approvalManager.resetApprovals();
+
+    // 把 SQLite 里的历史消息回放进 Pi 会话：否则切到历史对话后模型失忆、
+    // 用量圆环归零、手动压缩报「会话较短」。回放后再同步一次 agent 状态，
+    // 让 getContextUsage 在下一次 prompt 前就能读到正确值。
+    const modelInfo = runtime?.model
+      ? { api: String(runtime.model.api), provider: String(runtime.model.provider), id: String(runtime.model.id) }
+      : null;
+    const piHistory = toPiMessages(loadSessionMessages(sessionId), modelInfo);
+    if (piHistory.length > 0) {
+      for (const m of piHistory) {
+        session.sessionManager.appendMessage(m as any);
+      }
+      session.agent.state.messages = session.sessionManager.buildSessionContext().messages as any;
+    }
 
     this.unsubscriber = session.subscribe((event: AgentSessionEvent) => {
       this.handleSessionEvent(event);
@@ -717,8 +740,56 @@ export class AgentRuntime {
       throw new Error('当前没有活动会话');
     }
     if (typeof (this.activeSession as any).compact === 'function') {
-      await (this.activeSession as any).compact();
+      try {
+        await (this.activeSession as any).compact();
+      } catch (err) {
+        // SDK 把「无需压缩」也当错误抛出；良性场景就此打住（提示已走 compaction_end 事件）。
+        if (!benignCompactionNotice(err instanceof Error ? err.message : String(err))) {
+          throw err;
+        }
+      }
     }
+  }
+
+  /**
+   * 压缩当前会话并把摘要写入当前 agent 的记忆库。
+   * 压缩取消（用户中断）或失败时不写记忆；压缩成功但摘要为空同样跳过。
+   */
+  async compactAndRemember(): Promise<void> {
+    if (!this.activeSession) {
+      throw new Error('当前没有活动会话');
+    }
+    let result: any;
+    try {
+      result = await (this.activeSession as any).compact();
+    } catch (err) {
+      // 良性场景（会话太短/已压缩过）不写记忆也不抛错，提示已走 compaction_end 事件。
+      if (!benignCompactionNotice(err instanceof Error ? err.message : String(err))) {
+        throw err;
+      }
+      return;
+    }
+    const summary = typeof result?.summary === 'string' ? result.summary.trim() : '';
+    if (!summary) return;
+    memoryService.add(summary, ['compaction'], 'compaction');
+    this.emit(AGENT_EVENT_COMPACTION, {
+      phase: 'end',
+      message: '压缩摘要已写入记忆'
+    });
+  }
+
+  /** 当前会话的上下文用量（tokens 可能为 null：压缩后未产生新回复前是未知态）。 */
+  getContextUsage(): { tokens: number | null; contextWindow: number; percent: number | null } | null {
+    if (!this.activeSession || typeof (this.activeSession as any).getContextUsage !== 'function') {
+      return null;
+    }
+    const usage = (this.activeSession as any).getContextUsage();
+    if (!usage) return null;
+    return {
+      tokens: usage.tokens ?? null,
+      contextWindow: usage.contextWindow ?? 0,
+      percent: usage.percent ?? null
+    };
   }
 
   listCommands(): SlashCommandInfo[] {
@@ -1097,18 +1168,39 @@ export class AgentRuntime {
         break;
       }
 
-      case 'compaction_end':
-        if ('errorMessage' in event && event.errorMessage) {
-          this.emit(AGENT_EVENT_ERROR, event.errorMessage);
-          this.setStatus({ state: 'error' });
-        } else {
-          const removed = 'removedTokens' in event ? (event as any).removedTokens : undefined;
+      case 'compaction_start':
+        this.emit(AGENT_EVENT_COMPACTION, {
+          phase: 'start',
+          message: '正在压缩对话上下文…'
+        });
+        break;
+
+      case 'compaction_end': {
+        if (event.errorMessage) {
+          // SDK 把「无需压缩」也当错误报上来；良性场景给友好提示而不是错误。
+          const benign = benignCompactionNotice(event.errorMessage);
+          if (benign) {
+            this.emit(AGENT_EVENT_COMPACTION, { phase: 'end', message: benign });
+          } else {
+            this.emit(AGENT_EVENT_ERROR, event.errorMessage);
+            this.setStatus({ state: 'error' });
+          }
+        } else if (event.aborted) {
           this.emit(AGENT_EVENT_COMPACTION, {
-            message: '对话上下文已压缩',
-            removedTokens: removed
+            phase: 'end',
+            message: '压缩已取消'
+          });
+        } else {
+          const tokensBefore = event.result?.tokensBefore;
+          this.emit(AGENT_EVENT_COMPACTION, {
+            phase: 'end',
+            message: tokensBefore
+              ? `对话上下文已压缩（压缩前约 ${tokensBefore} tokens）`
+              : '对话上下文已压缩'
           });
         }
         break;
+      }
 
       default:
         break;

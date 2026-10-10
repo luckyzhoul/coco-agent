@@ -128,9 +128,6 @@ interface ChatState {
   setError: (error: string | null) => void;
   clear: () => void;
 
-  // Compaction
-  compactionMessage: string | null;
-  setCompactionMessage: (msg: string | null) => void;
   addSystemMessage: (text: string) => void;
 }
 
@@ -506,9 +503,6 @@ export const useChatStore = create<ChatState>((set) => ({
       isLoading: false,
       error: null
     }),
-
-  compactionMessage: null,
-  setCompactionMessage: (msg) => set({ compactionMessage: msg }),
 
   addSystemMessage: (text) =>
     set((state) => ({

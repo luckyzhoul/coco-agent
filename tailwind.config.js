@@ -24,7 +24,9 @@ export default {
         accent: '#E8DFD0',
         'accent-foreground': '#3D3A36',
         'chat-user': '#E8DFD0',
-        'chat-assistant': '#FDFBF6'
+        'chat-assistant': '#FDFBF6',
+        destructive: 'hsl(var(--destructive) / <alpha-value>)',
+        'destructive-foreground': 'hsl(var(--destructive-foreground) / <alpha-value>)'
       },
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', '"PingFang SC"', '"Microsoft YaHei"', '"Segoe UI"', 'Roboto', 'sans-serif']

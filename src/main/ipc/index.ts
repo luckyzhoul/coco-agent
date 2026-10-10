@@ -40,6 +40,8 @@ import {
   AGENT_REBIND_WORKSPACE,
   AGENT_SET_THINKING_LEVEL,
   AGENT_COMPACT_CONTEXT,
+  AGENT_COMPACT_AND_REMEMBER,
+  AGENT_GET_CONTEXT_USAGE,
   AGENT_LIST_COMMANDS,
   SETTINGS_GET,
   SETTINGS_SET,
@@ -228,6 +230,15 @@ export function registerIpcHandlers(
   ipcMain.handle(AGENT_COMPACT_CONTEXT, async () => {
     agentRuntime.setMainWindow(getMainWindow());
     await agentRuntime.compactContext();
+  });
+
+  ipcMain.handle(AGENT_COMPACT_AND_REMEMBER, async () => {
+    agentRuntime.setMainWindow(getMainWindow());
+    await agentRuntime.compactAndRemember();
+  });
+
+  ipcMain.handle(AGENT_GET_CONTEXT_USAGE, () => {
+    return agentRuntime.getContextUsage();
   });
 
   ipcMain.handle(AGENT_LIST_COMMANDS, () => {

@@ -16,6 +16,7 @@ import type {
   FileWriteResult,
   ToolCall,
   TurnSummary,
+  CompactionEventPayload,
   Attachment,
   SlashCommandInfo
 } from '../shared/types';
@@ -34,6 +35,8 @@ import {
   AGENT_REBIND_WORKSPACE,
   AGENT_SET_THINKING_LEVEL,
   AGENT_COMPACT_CONTEXT,
+  AGENT_COMPACT_AND_REMEMBER,
+  AGENT_GET_CONTEXT_USAGE,
   AGENT_LIST_COMMANDS,
   AGENT_EVENT_MESSAGE,
   AGENT_EVENT_TOOL_CALL,
@@ -166,6 +169,14 @@ const electronAPI = {
       ipcRenderer.invoke(AGENT_SET_THINKING_LEVEL, level) as Promise<string>,
     compactContext: () =>
       ipcRenderer.invoke(AGENT_COMPACT_CONTEXT) as Promise<void>,
+    compactAndRemember: () =>
+      ipcRenderer.invoke(AGENT_COMPACT_AND_REMEMBER) as Promise<void>,
+    getContextUsage: () =>
+      ipcRenderer.invoke(AGENT_GET_CONTEXT_USAGE) as Promise<{
+        tokens: number | null;
+        contextWindow: number;
+        percent: number | null;
+      } | null>,
     listCommands: () =>
       ipcRenderer.invoke(AGENT_LIST_COMMANDS) as Promise<SlashCommandInfo[]>
   },
@@ -325,9 +336,9 @@ const electronAPI = {
       ipcRenderer.on(AGENT_EVENT_TURN_END, listener);
       return () => ipcRenderer.removeListener(AGENT_EVENT_TURN_END, listener);
     },
-    agentCompaction: (callback: (data: { message: string; removedTokens?: number }) => void) => {
+    agentCompaction: (callback: (data: CompactionEventPayload) => void) => {
       const listener = (_: unknown, data: unknown) =>
-        callback(data as { message: string; removedTokens?: number });
+        callback(data as CompactionEventPayload);
       ipcRenderer.on(AGENT_EVENT_COMPACTION, listener);
       return () => ipcRenderer.removeListener(AGENT_EVENT_COMPACTION, listener);
     },

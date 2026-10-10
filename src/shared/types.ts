@@ -58,6 +58,15 @@ export interface TurnSummary {
   durationMs?: number;
 }
 
+/** 会话压缩进度事件（AGENT_EVENT_COMPACTION 的 payload） */
+export interface CompactionEventPayload {
+  /** start：开始压缩（一次 LLM 调用，可能耗时较长）；end：压缩结束/取消 */
+  phase: 'start' | 'end';
+  message: string;
+  /** 压缩前的上下文 token 数（仅 end 且成功时提供） */
+  tokensBefore?: number;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';

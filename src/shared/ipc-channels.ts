@@ -13,6 +13,8 @@ export const AGENT_ARCHIVE_SESSION = 'agent:archiveSession';
 export const AGENT_REBIND_WORKSPACE = 'agent:rebindWorkspace';
 export const AGENT_SET_THINKING_LEVEL = 'agent:setThinkingLevel';
 export const AGENT_COMPACT_CONTEXT = 'agent:compactContext';
+export const AGENT_COMPACT_AND_REMEMBER = 'agent:compactAndRemember';
+export const AGENT_GET_CONTEXT_USAGE = 'agent:getContextUsage';
 export const AGENT_LIST_COMMANDS = 'agent:listCommands';
 
 // Agent event channels (main -> renderer)

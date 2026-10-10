@@ -18,6 +18,7 @@ import { useSettingsStore } from "../../stores/useSettingsStore";
 import { SECURITY_MODE_STYLES, SecurityModeIcon } from "../security/modeIcons";
 import { SECURITY_MODES } from "../security/securityModes";
 import { useSecurityStore } from "../../stores/useSecurityStore";
+import { ContextUsageIndicator } from "./ContextUsageIndicator";
 
 const providerLabels: Record<ModelProvider, string> = {
   "openai-compatible": "OpenAI 兼容",
@@ -562,6 +563,9 @@ export function ChatInput() {
                   </div>
                 )}
               </div>
+
+              {/* Context usage ring — hover for usage, click for compact menu */}
+              <ContextUsageIndicator />
 
               {/* Security mode pill — shows the selected mode, click to switch */}
               <div className="relative" ref={securityPickerRef}>
